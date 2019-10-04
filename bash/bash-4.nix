@@ -1,7 +1,7 @@
 with import <nixpkgs> {};
 
 let
-    base = import ../base-docker.nix;
+    base = import ../_base/docker.nix;
 in stdenv.mkDerivation rec {
     name = "base-bash";
     buildInputs = base.buildInputs ++ [
