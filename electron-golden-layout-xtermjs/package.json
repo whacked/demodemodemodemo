@@ -1,6 +1,7 @@
 {
   "main": "app/main.js",
   "dependencies": {
+    "chalk": "^4.0.0",
     "create-react-class": "^15.6.3",
     "golden-layout": "^1.5.9",
     "react": "^16.13.1",

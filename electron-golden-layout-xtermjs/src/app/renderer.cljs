@@ -9,11 +9,15 @@
             [goog.dom :as gdom]))
 
 (def fs (js/require "fs"))
+(def chalk (js/require "chalk"))
 (def spawn (aget (js/require "child_process") "spawn"))
 
 (def $config (as-> "resources/config.edn" $
                (.readFileSync fs $ "utf-8")
                (cljs.reader/read-string $)))
+
+(defn nl2cr [s]
+  (clojure.string/replace s "\n" "\r\n"))
 
 (defn setup-terminal! [container]
   (gdom/removeChildren container)
@@ -22,8 +26,10 @@
         web-links-addon (new (aget xterm-addon-web-links "WebLinksAddon"))
 
         input-buffer (atom nil)
-        ps1 (str "Hello from \u001B[1;3;31mxterm.js\u001B[0m $ ")
-        nl2cr (fn [s] (clojure.string/replace s "\n" "\r\n"))
+        ps1 (str "Hello from " (->> "xterm.js"
+                                 (.red chalk)
+                                 (.bold chalk)
+                                 (.italic chalk)) " $ ")
         exec! (fn [cmd]
                 (let [t0 (js/Date.)
                       proc (spawn "bash" (clj->js ["-c" cmd]))
