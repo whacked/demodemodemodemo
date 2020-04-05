@@ -26,16 +26,7 @@
         nl2cr (fn [s] (clojure.string/replace s "\n" "\r\n"))
         exec! (fn [cmd]
                 (let [t0 (js/Date.)
-                      proc (spawn
-                             "bash"
-                             (clj->js ["-c" cmd])
-                             #_(fn [err stdout stderr]
-                               (if err
-                                 (js/console.error err)
-                                 (do
-                                   (js/console.log stdout)
-                                   (.writeln term (nl2cr stdout))
-                                   (.write term ps1)))))
+                      proc (spawn "bash" (clj->js ["-c" cmd]))
                       bind-data-stream!
                       (fn [stream func]
                         (js-invoke (aget proc stream)
