@@ -9,7 +9,7 @@
             [goog.dom :as gdom]))
 
 (def fs (js/require "fs"))
-(def exec (aget (js/require "child_process") "exec"))
+(def spawn (aget (js/require "child_process") "spawn"))
 
 (def $config (as-> "resources/config.edn" $
                (.readFileSync fs $ "utf-8")
@@ -23,17 +23,37 @@
 
         input-buffer (atom nil)
         ps1 (str "Hello from \u001B[1;3;31mxterm.js\u001B[0m $ ")
+        nl2cr (fn [s] (clojure.string/replace s "\n" "\r\n"))
         exec! (fn [cmd]
-                (exec
-                  cmd
-                  (fn [err stdout stderr]
-                    (if err
-                      (js/console.error err)
-                      (do
-                        (js/console.log stdout)
-                        (.writeln term (clojure.string/replace
-                                         stdout "\n" "\r\n"))
-                        (.write term ps1))))))
+                (let [t0 (js/Date.)
+                      proc (spawn
+                             "bash"
+                             (clj->js ["-c" cmd])
+                             #_(fn [err stdout stderr]
+                               (if err
+                                 (js/console.error err)
+                                 (do
+                                   (js/console.log stdout)
+                                   (.writeln term (nl2cr stdout))
+                                   (.write term ps1)))))
+                      bind-data-stream!
+                      (fn [stream func]
+                        (js-invoke (aget proc stream)
+                                   "on" "data" func))]
+                  (bind-data-stream!
+                    "stdout"
+                    (fn [data]
+                      (.write term (nl2cr (str data)))))
+                  (bind-data-stream!
+                    "stderr"
+                    (fn [data]
+                      (.write term (nl2cr (str data)))))
+                  (.on proc "exit"
+                       (fn [code]
+                         (.write term
+                                 (str "complete: " cmd "\r\n"
+                                      (/ (- (js/Date.) t0) 1000.0) "s\r\n"))
+                         (.write term ps1)))))
         ]
     (doto term
       (.setOption "disableStdin" true)
