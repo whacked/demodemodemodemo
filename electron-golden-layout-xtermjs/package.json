@@ -1,0 +1,13 @@
+{
+  "main": "app/main.js",
+  "dependencies": {
+    "create-react-class": "^15.6.3",
+    "golden-layout": "^1.5.9",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "shadow-cljs": "^2.8.94",
+    "xterm": "^4.4.0",
+    "xterm-addon-fit": "^0.3.0",
+    "xterm-addon-web-links": "^0.2.1"
+  }
+}

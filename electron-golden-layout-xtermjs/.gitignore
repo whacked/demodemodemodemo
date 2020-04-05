@@ -1,0 +1,10 @@
+*.sw*
+.shadow-cljs
+cljs-runtime
+node_modules
+manifest.edn
+
+app/main.js
+app/js/*.js
+app/css/combined.css
+

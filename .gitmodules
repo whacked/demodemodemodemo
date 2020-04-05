@@ -1,0 +1,6 @@
+[submodule "electron-golden-layout-xtermjs/external/wksymclj"]
+	path = electron-golden-layout-xtermjs/external/wksymclj
+	url = https://github.com/whacked/wksymclj
+[submodule "electron-golden-layout-xtermjs/external/shadow-cljs-electron-example"]
+	path = electron-golden-layout-xtermjs/external/shadow-cljs-electron-example
+	url = https://github.com/whacked/shadow-cljs-electron-example

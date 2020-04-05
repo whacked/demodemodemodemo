@@ -1,0 +1,28 @@
+{:source-paths ["src"
+                "external/wksymclj/src/cljc"
+                "external/wksymclj/src/cljs"
+                "external/shadow-cljs-electron-example/src"
+                ]
+ :dependencies [[org.clojure/core.async "1.1.587"]
+                [cider/cider-nrepl "0.16.0-SNAPSHOT"]
+                [org.clojars.nenadalm/uri "0.1.2-SNAPSHOT"]
+                [reagent "0.9.1"]
+                [swiss-arrows "1.0.0" :exclusions [org.clojure]]
+                ]
+ :dev-http {8080 "target/"}
+ :builds {:main {:output-to "app/main.js"
+                 :target :node-script
+                 :main example.main/main
+                 :devtools {:after-load app.main/reload!}}
+
+          ;; ref shadow-cljs-electron-example
+          :renderer {:target :browser
+                     :output-dir "app/js"
+                     :asset-path "js"
+
+                     :modules {:renderer {:entries [app.renderer]}}
+
+                     :devtools {:before-load app.renderer/stop
+                                :after-load app.renderer/start}
+                     }
+          }}

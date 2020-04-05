@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>main app window</title>
+    <style>
+        * { margin: 0; padding: 0; }
+        html, body { height: 100%; width: 100%; }
+    </style>
+    <link type="text/css" rel="stylesheet" href="css/combined.css" />
+</head>
+<body>
+    <div id="main">
+        <h1>Hello World!</h1>
+        We are using node <script>document.write(process.versions.node)</script>,
+        Chrome <script>document.write(process.versions.chrome)</script>,
+        and Electron <script>document.write(process.versions.electron)</script>.
+        <h3>waiting to initialize...</h3>
+    </div>
+    <script src="js/renderer.js"></script>
+    <script>app.renderer.init();</script>
+</body>
+</html>
