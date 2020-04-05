@@ -1,4 +1,5 @@
 (ns app.renderer
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require ["path" :as path]
             ["url" :as url]
 			[reagent.core :as r]
@@ -6,6 +7,7 @@
             ["xterm" :as xterm]
             ["xterm-addon-fit" :as xterm-addon-fit]
             ["xterm-addon-web-links" :as xterm-addon-web-links]
+            [cljs.core.async :refer [put! chan <! >! timeout close!]]
             [goog.dom :as gdom]))
 
 (def fs (js/require "fs"))
@@ -16,8 +18,46 @@
                (.readFileSync fs $ "utf-8")
                (cljs.reader/read-string $)))
 
+(def $process-out-channel (chan))
+
 (defn nl2cr [s]
   (clojure.string/replace s "\n" "\r\n"))
+
+(defn exec-process! [cmd & {:keys [stdout stderr exit]}]
+  (let [proc (spawn "bash" (clj->js ["-c" cmd]))
+        bind-data-stream!
+        (fn [stream func]
+          (js-invoke (aget proc stream)
+                     "on" "data" func))]
+    (when stdout
+      (bind-data-stream! "stdout" stdout))
+    (when stderr
+      (bind-data-stream! "stderr" stdout))
+    (when exit
+      (.on proc "exit" exit))))
+
+(defn execute-process-capture-stdout! [cmd]
+  (let [t0 (js/Date.)
+        push-to-term! (fn [data]
+                        (go
+                          (>! $process-out-channel
+                              (-> data str nl2cr))))]
+    (exec-process!
+      cmd
+      :stdout push-to-term!
+      :exit (fn [code]
+              (->> (str (.bold chalk "\n# finished ")
+                        "in "
+                        (.yellow chalk (-> (js/Date.)
+                                         (- t0)
+                                         (/ 1000.0)
+                                         (str "s")))
+                        ": "
+                        (if (= code 0)
+                          (.green chalk cmd)
+                          (.red chalk cmd))
+                        "\n")
+                   (push-to-term!))))))
 
 (defn setup-terminal! [container]
   (gdom/removeChildren container)
@@ -32,25 +72,17 @@
                                  (.italic chalk)) " $ ")
         exec! (fn [cmd]
                 (let [t0 (js/Date.)
-                      proc (spawn "bash" (clj->js ["-c" cmd]))
-                      bind-data-stream!
-                      (fn [stream func]
-                        (js-invoke (aget proc stream)
-                                   "on" "data" func))]
-                  (bind-data-stream!
-                    "stdout"
-                    (fn [data]
-                      (.write term (nl2cr (str data)))))
-                  (bind-data-stream!
-                    "stderr"
-                    (fn [data]
-                      (.write term (nl2cr (str data)))))
-                  (.on proc "exit"
-                       (fn [code]
-                         (.write term
-                                 (str "complete: " cmd "\r\n"
-                                      (/ (- (js/Date.) t0) 1000.0) "s\r\n"))
-                         (.write term ps1)))))
+                      write-to-term! (fn [data] (.write term (nl2cr (str data))))]
+                  (exec-process!
+                    cmd
+                    :stdout write-to-term!
+                    :stderr write-to-term!
+                    :exit
+                    (fn [code]
+                      (.write term
+                              (str "complete: " cmd "\r\n"
+                                   (/ (- (js/Date.) t0) 1000.0) "s\r\n"))
+                      (.write term ps1)))))
         ]
     (doto term
       (.setOption "disableStdin" true)
@@ -85,7 +117,12 @@
               (js/console.warn "onKey error:")
               (js/console.warn error)
               (js/console.info ev))))))
-    (.fit fit-addon)))
+    (.fit fit-addon)
+    (go-loop
+      []
+      (when-let [data (<! $process-out-channel)]
+        (.write term (nl2cr (str data)))
+        (recur)))))
 
 (defn initialize-panels! []
   (let [state (r/atom {:acontent "apple"
@@ -113,7 +150,25 @@
                          (swap! state assoc :bcontent (aget evt "target" "value")))}]]
          )]
       (gdom/getElement "panel-D")))
-  (setup-terminal! (gdom/getElement "panel-C")))
+  (setup-terminal! (gdom/getElement "panel-C"))
+
+  (let [state (r/atom {:input nil})]
+    (r/render
+      [(fn []
+         [:div
+          {:style {:width "100%"
+                   :padding "0.5em"}}
+          [:input
+           {:style {:width "100%"}
+            :placeholder "type command and hit enter"
+            :value (get-in @state [:input] "")
+            :on-change (fn [ev]
+                         (swap! state assoc-in [:input] (aget ev "target" "value")))
+            :on-key-down (fn [ev]
+                          (when (= (aget ev "keyCode") 13)
+                            (execute-process-capture-stdout! (get-in @state [:input]))
+                            (swap! state assoc-in [:input] "")))}]])]
+      (gdom/getElement "panel-F"))))
 
 (defn start []
   (js/console.log "renderer - start")
