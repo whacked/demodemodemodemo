@@ -1,8 +1,6 @@
 (ns app.renderer
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
-  (:require ["path" :as path]
-            ["url" :as url]
-			[reagent.core :as r]
+  (:require [reagent.core :as r]
             [wksymclj.ui.golden-layout :as wk-gl]
             ["xterm" :as xterm]
             ["xterm-addon-fit" :as xterm-addon-fit]
@@ -11,6 +9,7 @@
             [goog.dom :as gdom]))
 
 (def fs (js/require "fs"))
+(def path (js/require "path"))
 (def chalk (js/require "chalk"))
 (def spawn (aget (js/require "child_process") "spawn"))
 
