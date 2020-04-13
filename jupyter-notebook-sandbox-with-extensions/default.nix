@@ -20,7 +20,16 @@ in stdenv.mkDerivation rec {
         mkdir -p $USERCACHE
     fi
 
+    function enable-jupyter-extension() {
+        jupyter nbextension enable --user --py $*
+    }
+
+    function disable-jupyter-extension() {
+        jupyter nbextension disable --user --py $*
+    }
+
     function setup-first-run() {
+        # base + official contrib dependencies
         pip install jupyter jupyter_contrib_nbextensions autopep8
         jupyter contrib nbextension install --user
         ENABLE_BUNDLED_EXTENSIONS=(
@@ -39,6 +48,17 @@ in stdenv.mkDerivation rec {
         for ext in ''${ENABLE_BUNDLED_EXTENSIONS[@]}; do
             jupyter nbextension enable $ext
         done
+        # additional extensions
+        pip install nodebook
+        jupyter nbextension install --user --py nodebook
+        # not enabling immediately; requires a magic cell setup to work, e.g.:
+        # --------------------------
+        # #pragma nodebook off
+        # %load_ext nodebook.ipython
+        # %nodebook memory my-nb
+        # --------------------------
+        # see https://github.com/stitchfix/nodebook
+        # enable-jupyter-extension nodebook
     }
 
     function run-unprotected-server() {
@@ -75,6 +95,7 @@ in stdenv.mkDerivation rec {
     else
         source $VIRTUAL_ENV/bin/activate
     fi
+    jupyter nbextension list
   '';
 }
 
