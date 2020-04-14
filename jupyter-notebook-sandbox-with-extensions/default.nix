@@ -8,7 +8,9 @@ in stdenv.mkDerivation rec {
     paths = buildInputs;
   };
   buildInputs = [
+    gcc
     python37Full
+    # doesn't seem to play well with pip installed extensions
     # python37Packages.jupyter
   ];
   shellHook = ''
@@ -63,15 +65,20 @@ in stdenv.mkDerivation rec {
 
     function run-unprotected-server() {
         _token=''${1-asdf}
-        jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token=$_token
+        if [ -e /.dockerenv ]; then
+            IP_ARG="--ip=0.0.0.0"
+        else
+            IP_ARG=
+        fi
+        jupyter notebook \
+            --no-browser $IP_ARG \
+            --NotebookApp.token=$_token
     }
 
     unset PYTHONPATH
     # FIX for ImportError: libstdc++.so.6: cannot open shared object file: No such file or directory
-    # when starting jupyter from nix-shell
-    if [ -e /usr/lib/x86_64-linux-gnu ]; then
-        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu
-    fi
+    # but costly import (gcc-9.2.0)
+    export LD_LIBRARY_PATH=${gcc-unwrapped.lib}/lib:$LD_LIBRARY_PATH
 
     export VIRTUAL_ENV=''${VIRTUAL_ENV-$USERCACHE/$name-venv}
 
