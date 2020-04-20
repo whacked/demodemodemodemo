@@ -103,6 +103,10 @@ in stdenv.mkDerivation rec {
         source $VIRTUAL_ENV/bin/activate
     fi
     jupyter nbextension list
+    
+    alias build-docker-container='sudo $(which docker) build . -t emacs-with-nix'
+    alias run-nix-docker-container='sudo $(which docker) run -p 8888:8888 -v $PWD:/opt/demo -w /opt/demo --rm -it emacs-with-nix /bin/bash'
+    cat default.nix | grep '\(alias\|function\) .*'
   '';
 }
 
