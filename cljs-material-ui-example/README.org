@@ -1,0 +1,12 @@
+* minimal demonstration of loading material-ui components within a shadow-cljs project
+
+at the moment, material-ui 4+ does not seem to work as-is although mui 3 works fine
+
+** usage
+
+#+BEGIN_SRC sh :eval never
+nix-shell
+watch
+#+END_SRC
+
+then open your browser to port 8080, or as shadow-cljs directs

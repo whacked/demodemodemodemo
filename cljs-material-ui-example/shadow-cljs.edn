@@ -1,0 +1,14 @@
+{:source-paths ["src"]
+ :dependencies [[org.clojure/core.async "1.1.587"]
+                [cider/cider-nrepl "0.16.0-SNAPSHOT"]
+                [reagent "0.9.1"]
+                ]
+
+ :builds {:main {:output-dir "public/js"
+                 :asset-path "js"
+                 :target :browser
+                 :modules {:main {:entries [example.main]}}
+                 :devtools {:before-load example.main/stop!
+                            :after-load example.main/reload!
+                            :http-root "public"
+                            :http-port 8080}}}}
