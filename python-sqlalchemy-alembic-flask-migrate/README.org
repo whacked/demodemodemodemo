@@ -15,3 +15,23 @@ To persist data between runs, you must use the file-based sqlite.
 run =initialize-database= to create the database, then =run= to start with the test database file
 
 once the server has started, open the browser as flask indicates (default port 5000); open e.g. =http://localhost:5000/admin/= to reach the default Flask-Admin interface
+
+** migrations
+
+the migration setup has already been applied; see git history. But the steps are as follows:
+
+- run the =initialize-database= alias to seed the tables using sqlalchemy's =metadata.create_all= (in the =models= module)
+- edit alembic's =env= definition in [[file:migrations/env.py]]
+  - in particular, we must import our *models of interest* and set the =target_metadata= accordingly
+  - without doing these steps, auto-discovered migrations will report undesired messages e.g.
+    - =INFO  [alembic.env] No changes in schema detected.= (non-functional metadata in env)
+    - =INFO  [alembic.autogenerate.compare] Detected removed table 'posts'= (insufficient model imports)
+  - if you setup the alembic env with the correct imports /without/ having created the database, alembic will create a migration from scratch:
+    - =INFO  [alembic.autogenerate.compare] Detected added table 'posts'=
+    - this is fine, but since =initialize-database= creates the database first, keep in mind which starting state you choose
+    - consider checking the database schema using e.g. =sqlite3 test.db .schema=
+- notice that after initializing the =migrations= directory, /there are no migrations/; the base state /is/ what the database is currently at.
+- update a model, e.g. add a =Post.favorite_number= field
+- run the =create-database-migration= alias, e.g. =create-database-migration add-favorite-number=
+  - notice that now, alembic detects and correctly generates the corresponding migration inside [[file:migrations/versions]]
+

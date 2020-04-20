@@ -31,6 +31,7 @@ class Post(Base):
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     name = sa.Column(sa.Unicode(10), nullable=False)
     greeting = sa.Column(sa.Unicode(20), nullable=True)
+    favorite_number = sa.Column(sa.Integer, nullable=False)
 
 
 def get_total_posts():
