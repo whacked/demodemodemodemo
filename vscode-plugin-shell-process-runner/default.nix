@@ -16,7 +16,7 @@ stdenv.mkDerivation rec {
 
     shellHook = ''
       unset name
-      export PATH=$PATH:$(npm bin)
+      export PATH=$(npm bin):$PATH
 
       function vscode() {
           if [ "x$VSCODE_USER_DATA_DIR" == "x" ]; then
