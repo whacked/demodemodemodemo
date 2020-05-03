@@ -1,0 +1,31 @@
+<div id="status">...</div>
+<script>
+// https://github.com/monsur/test-cors.org
+var createCORSRequest = function(method, url) {
+  var xhr = new XMLHttpRequest();
+  if ("withCredentials" in xhr) {
+    // Most browsers.
+    xhr.open(method, url, true);
+  } else if (typeof XDomainRequest != "undefined") {
+    // IE8 & IE9
+    xhr = new XDomainRequest();
+    xhr.open(method, url);
+  } else {
+    // CORS not supported.
+    xhr = null;
+  }
+  return xhr;
+};
+
+var xhr = createCORSRequest("POST", "http://localhost:3000/");
+
+xhr.onload = function() {
+  document.getElementById("status").innerHTML = "<h1>SUCCESS</h1>";
+};
+
+xhr.onerror = function() {
+  document.getElementById("status").innerHTML = "<h1>FAILURE</h1>";
+};
+
+xhr.send();
+</script>

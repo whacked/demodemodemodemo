@@ -1,0 +1,10 @@
+* clj-ring-reitit-with-cors
+
+  bare bones, single endpoint demonstration of using [[https://github.com/metosin/reitit][reitit]] with interceptors that responds with working CORS headers.
+
+  headers are manually created in lieu of other middleware like [[https://github.com/r0man/ring-cors][ring-cors]], which makes the logic far simpler to understand.
+  
+  see [[file:default.nix]] for environment
+
+  after starting the server, you can load [[file:test.html]] in the broswer to check the console/network output
+  
