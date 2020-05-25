@@ -20,23 +20,16 @@ in stdenv.mkDerivation rec {
     postgresql_12
     glibcLocales
   ];
+  userhome = (builtins.getEnv "HOME");
+  nativeBuildInputs = [
+    (userhome + "/setup/bash/nix_shortcuts.sh")
+    (userhome + "/setup/bash/postgresql_shortcuts.sh")
+  ];
+  DEBUG_LEVEL = 1;
   shellHook = ''
-    _BASH_SHARED_DIR=$CLOUDSYNC/main/dev/setup/bash
-    . $_BASH_SHARED_DIR/nix_shortcuts.sh
-    SHORTCUTS_FILE=$_BASH_SHARED_DIR/postgresql_shortcuts.sh
-    if [ -e $SHORTCUTS_FILE ]; then
-        source $SHORTCUTS_FILE
-    else
-        echo no shortcuts in $SHORTCUTS_FILE
-    fi
-
-    VIRTUAL_ENV=''${VIRTUAL_ENV-$USERCACHE/$name-venv}
-    if [ -e $VIRTUAL_ENV ]; then
-        source $VIRTUAL_ENV/bin/activate
-    else
-        python -m venv $VIRTUAL_ENV
-        source $VIRTUAL_ENV/bin/activate
+    function initialize-venv() {
         pip install -U git+ssh://git@bitbucket.org/whacked/BeanBunny
-    fi
+    }
+    ensure-venv initialize-venv
   '';
 }

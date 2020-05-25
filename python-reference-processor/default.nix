@@ -14,17 +14,15 @@ in stdenv.mkDerivation rec {
     python37Packages.requests-cache
     jq
   ];
-  shellHook = ''
-    _BASH_SHARED_DIR=$CLOUDSYNC/main/dev/setup/bash
-    . $_BASH_SHARED_DIR/nix_shortcuts.sh
 
-    VIRTUAL_ENV=''${VIRTUAL_ENV-$USERCACHE/$name-venv}
-    if [ -e $VIRTUAL_ENV ]; then
-        source $VIRTUAL_ENV/bin/activate
-    else
-        python -m venv $VIRTUAL_ENV
-        source $VIRTUAL_ENV/bin/activate
+  nativeBuildInputs = [
+    ((builtins.getEnv "HOME") + "/setup/bash/nix_shortcuts.sh")
+  ];
+  DEBUG_LEVEL = 1;
+  shellHook = ''
+    function initialize-venv() {
         pip install crossrefapi
-    fi
+    }
+    ensure-venv initialize-venv
   '';
 }
