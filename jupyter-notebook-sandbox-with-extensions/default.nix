@@ -9,18 +9,25 @@ in stdenv.mkDerivation rec {
   };
   buildInputs = [
     gcc
+    # NOTE working directly from the nix-provided jupyter,
+    # e.g. python37Packages.jupyter, seems less flexible
+    # when setting up pip installed extensions
     python37Full
-    # doesn't seem to play well with pip installed extensions
-    # python37Packages.jupyter
   ];
-  shellHook = ''
-    _BASH_SHARED_DIR=$CLOUDSYNC/main/dev/setup/bash
-    . $_BASH_SHARED_DIR/nix_shortcuts.sh
 
-    USERCACHE=''${USERCACHE-/tmp/cache}
-    if [ ! -e $USERCACHE ]; then
-        mkdir -p $USERCACHE
-    fi
+  # this is probably an abuse
+  userhome = (builtins.getEnv "HOME");
+  nativeBuildInputs = [
+    (userhome + "/setup/bash/nix_shortcuts.sh")
+  ];
+
+  DEBUG_LEVEL = 1;
+  shellHook = ''
+    ensure-usercache
+    unset PYTHONPATH
+    # FIX for ImportError: libstdc++.so.6: cannot open shared object file: No such file or directory
+    # but costly import (gcc-9.2.0)
+    export LD_LIBRARY_PATH=${gcc-unwrapped.lib}/lib:$LD_LIBRARY_PATH
 
     function enable-jupyter-extension() {
         jupyter nbextension enable --user --py $*
@@ -75,39 +82,26 @@ in stdenv.mkDerivation rec {
             --NotebookApp.token=$_token
     }
 
-    unset PYTHONPATH
-    # FIX for ImportError: libstdc++.so.6: cannot open shared object file: No such file or directory
-    # but costly import (gcc-9.2.0)
-    export LD_LIBRARY_PATH=${gcc-unwrapped.lib}/lib:$LD_LIBRARY_PATH
-
-    export VIRTUAL_ENV=''${VIRTUAL_ENV-$USERCACHE/$name-venv}
-
     if [ "x$JUPYTER_CONFIG_DIR" == "x" ]; then
         ALTHOME=$USERCACHE/$name-home
         mkdir -p $ALTHOME
         export JUPYTER_CONFIG_DIR=$ALTHOME/jupyter
         export IPYTHONDIR=''${IPYTHONDIR-$ALTHOME/ipython}
-        echo "setting jupyter working directory to $JUPYTER_CONFIG_DIR"
-        echo "setting python working directory to $IPYTHONDIR"
+        echo " - setting jupyter working directory to $JUPYTER_CONFIG_DIR"
+        echo " - setting python working directory to $IPYTHONDIR"
         
         JUPYTER_WORK_DIR=$USERCACHE/$name-jupyter-work
         export JUPYTER_DATA_DIR=$JUPYTER_WORK_DIR/data
         export JUPYTER_RUNTIME_DIR=$JUPYTER_WORK_DIR/runtime
     fi
 
-    if [ ! -e $VIRTUAL_ENV ]; then
-        python -m venv $VIRTUAL_ENV
-        source $VIRTUAL_ENV/bin/activate
-        setup-first-run
-    else
-        source $VIRTUAL_ENV/bin/activate
-    fi
+    ensure-venv setup-first-run
     jupyter nbextension list
     
     alias build-docker-container='sudo $(which docker) build . -t emacs-with-nix'
     alias run-nix-docker-container='sudo $(which docker) run -p 8888:8888 -v $PWD:/opt/demo -w /opt/demo --rm -it emacs-with-nix /bin/bash'
     alias run='jupyter notebook --no-browser'
-    cat default.nix | grep '\(alias\|function\) .*'
+    echo-shortcuts default.nix
   '';
 }
 
