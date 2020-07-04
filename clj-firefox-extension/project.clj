@@ -23,7 +23,10 @@
   [:target-path "target/cljsbuild"]
 
   :shadow-cljs ~(-> (slurp "incl/luminus/shadow-cljs.edn")
-                    (read-string))
+                    (read-string)
+                    (update :builds merge (-> (slurp "incl/firefox/shadow-cljs.edn")
+                                              (read-string)
+                                              (:builds))))
   :npm-deps ~(->> ["incl/luminus/npm-deps.edn"]
                   (map (comp read-string slurp))
                   (apply concat))

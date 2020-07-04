@@ -24,5 +24,7 @@ in stdenv.mkDerivation rec {
     alias start-all='compile-cljs; start-server'
 
     alias generate-manifest='cat borderify/generate_manifest.clj|lein repl'
+    alias compile-extension='lein shadow compile borderify'
+    alias release-extension='lein shadow release borderify'
   '';
 }
