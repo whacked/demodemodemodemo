@@ -1,15 +1,13 @@
 (ns firefox-extension.generate-manifest
   (:require [clojure.data.json :as json]
-            [clojure.java.io :as io]))
-
-(def $extensions-base-dir "firefox_extensions")
+            [clojure.java.io :as io]
+            [firefox-extension.common
+             :refer [$extensions-base-dir
+                     $manifest-base]]))
 
 (when (empty? *command-line-args*)
   (println "ERROR: need a build name")
   (System/exit 1))
-
-(def $manifest-base
-  {:manifest_version 2})
 
 (defn -main [extension-build-name]
   

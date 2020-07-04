@@ -4,7 +4,8 @@
   :url "http://example.com/FIXME"
 
   :dependencies ~(->> ["incl/luminus/dependencies.edn"
-                       "incl/proj/dependencies.edn"]
+                       "incl/proj/dependencies.edn"
+                       "incl/firefox/dependencies.edn"]
                       (map (comp read-string slurp))
                       (apply concat))
 
