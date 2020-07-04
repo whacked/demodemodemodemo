@@ -1,6 +1,8 @@
 .*sw*
 node_modules
 
+cljs-runtime
+
 /target
 /lib
 /classes
