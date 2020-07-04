@@ -22,5 +22,7 @@ in stdenv.mkDerivation rec {
     alias compile-cljs='lein shadow compile app'
 
     alias start-all='compile-cljs; start-server'
+
+    alias generate-manifest='cat borderify/generate_manifest.clj|lein repl'
   '';
 }
