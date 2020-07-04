@@ -3,7 +3,8 @@
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
 
-  :dependencies ~(->> ["incl/luminus/dependencies.edn"]
+  :dependencies ~(->> ["incl/luminus/dependencies.edn"
+                       "incl/proj/dependencies.edn"]
                       (map (comp read-string slurp))
                       (apply concat))
 
