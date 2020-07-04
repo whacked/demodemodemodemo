@@ -21,6 +21,11 @@ NOTES:
   you do not need to Reload the plugin to make simple javascript
   / html / css changes propagate for the popup plugin
 
+* using watch
+
+  to use lein shadow watch beastify-popup,
+  launch firefox to about:config, and set security.csp.enable to false
+
 * dev tools
   open from Debugging -> Temporary Extensions -> <extension> -> Inspect
   - pop out the window
