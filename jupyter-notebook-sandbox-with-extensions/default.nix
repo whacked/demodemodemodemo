@@ -13,6 +13,7 @@ in stdenv.mkDerivation rec {
     # e.g. python37Packages.jupyter, seems less flexible
     # when setting up pip installed extensions
     python37Full
+    graphviz
   ];
 
   # this is probably an abuse
@@ -28,6 +29,8 @@ in stdenv.mkDerivation rec {
     # FIX for ImportError: libstdc++.so.6: cannot open shared object file: No such file or directory
     # but costly import (gcc-9.2.0)
     export LD_LIBRARY_PATH=${gcc-unwrapped.lib}/lib:$LD_LIBRARY_PATH
+    # needed to build pygraphviz
+    export PKG_CONFIG_PATH=''${PKG_CONFIG_PATH+$PKG_CONFIG_PATH:}${graphviz}/lib/pkgconfig
 
     function enable-jupyter-extension() {
         jupyter nbextension enable --user --py $*
