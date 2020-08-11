@@ -1,0 +1,6 @@
+shadow-cljs.edn
+.lein-repl-history
+.shadow-cljs
+log
+node_modules
+target
