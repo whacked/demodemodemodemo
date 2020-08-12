@@ -4,6 +4,7 @@
   "license": "ISC",
   "dependencies": {
     "react-d3-tree": "^1.16.1",
+    "react-transition-group": "^4.4.1",
     "xstate": "^4.11.0"
   },
   "devDependencies": {
