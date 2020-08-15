@@ -3,6 +3,11 @@
   "version": "0.0.1",
   "license": "ISC",
   "dependencies": {
+    "@material-ui/core": "4.11.0",
+    "@material-ui/lab": "4.0.0-alpha.56",
+    "@material-ui/pickers": "3.2.10",
+    "dagre-d3-react": "^0.2.4",
+    "graphlib-dot": "^0.6.4",
     "react-d3-tree": "^1.16.1",
     "react-transition-group": "^4.4.1",
     "xstate": "^4.11.0"

@@ -4,3 +4,5 @@ shadow-cljs.edn
 log
 node_modules
 target
+
+cljs-runtime
