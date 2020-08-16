@@ -563,8 +563,7 @@
           [:th
            {:border "1px solid #333"
             :background "#EEE"
-            :color (if (get-in @GlobalConfig
-                               [:settings [::ui-style ::black-header] :value])
+            :color (if (get-global-setting-coord-value [::ui-style ::black-header])
                      "black"
                      "#AAA")}]
 
