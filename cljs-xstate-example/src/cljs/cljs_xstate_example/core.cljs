@@ -320,21 +320,28 @@
    (state-history-to-graph-state @all-settings-state-history)))
 
 (defn push-settings-to-history! []
+
+  (defn update-terminal-leaf
+    ([state-tree next-id]
+     (update-terminal-leaf state-tree next-id 1))
+    ([state-tree next-id iter-count]
+     (update
+      state-tree :children
+      (fn [cur-children]
+        (if (empty? cur-children)
+          (conj cur-children (->StateTree next-id (get-in @GlobalConfig [:settings]) []))
+          (update
+           cur-children
+           (dec (count cur-children))
+           update-terminal-leaf next-id (inc iter-count)))))))
+  
   (let [cur-state-length (-> @all-settings-state-history
                              (state-history-to-graph-state)
                              (:nodes)
                              (count))
         next-id (inc cur-state-length)]
     (js/console.log cur-state-length)
-    (swap! all-settings-state-history
-           update
-           :children
-           conj
-           ;; this is wrong! it needs to append to current graph position
-           (->StateTree
-            next-id
-            (get-in @GlobalConfig [:settings])
-            []))
+    (swap! all-settings-state-history update-terminal-leaf next-id)
     (reset! graph-state-atom
             (state-history-to-graph-state
              @all-settings-state-history))))
