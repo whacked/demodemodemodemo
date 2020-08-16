@@ -135,7 +135,6 @@
     [cursor-path :- s/Keyword
      value       :- s/Any
      description :- s/Str
-     ruleset     :- [s/Any]
      restriction :- s/Keyword
      ])
 
@@ -180,13 +179,10 @@
 
 (def GlobalConfig
   (->> [(->Setting [::ui-style ::dark-background] false "dark mode"
-                   []
                    [:Boolean])
         (->Setting [::ui-style ::black-header] true "black header"
-                   []
                    [:Boolean])
         (->Setting [::demo-panel ::list-limit] 10 "maximum number of allowed items"
-                   []
                    [:MinMaxRange [0 20]])]
        (map (fn [setting]
               [(:cursor-path setting) setting]))
@@ -197,18 +193,6 @@
                        CustomRuleDefinition
                        {:description
                         "cannot have matching background and foreground lightness because it will be hard to read"
-                  
-                        ;; :fixme
-                        ;; [:what
-                        ;;  [::display-contrast ::black-header 'black-header?]
-                        ;;  [::display-contrast ::dark-background 'dark-background?]
-                        ;;  :when
-                        ;;  (and 'black-header? 'dark-background?)
-                        ;;  :then
-                        ;;  '(do
-                        ;;     (js/console.log "STYLE CONFLICT!")
-                        ;;     (swap! world update :messages
-                        ;;            (fn [cur-messages] (conj (set cur-messages) "BADZZ"))))]
                   
                         :odr.Conditions
                         [(odr/->Condition
@@ -628,7 +612,7 @@
                     [:td
                      {:style {:font-family "monospace"
                               :font-size "x-small"}}
-                     (pr-str (:fixme rule-row))]])))
+                     ]])))
            ]]]
 
 
@@ -697,8 +681,6 @@
                                 [:td
                                  (let [val (key setting)]
                                    (case key
-                                     :ruleset
-                                     (count val)
 
                                      :cursor-path
                                      [:code
