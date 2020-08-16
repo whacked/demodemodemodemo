@@ -175,6 +175,36 @@
    (s/optional-key :filter)  s/Any
    })
 
+(def SettingCoordinateSchema
+  [(s/one s/Keyword "id")
+   (s/one s/Keyword "attr")])
+
+(defn SettingCoordinate->AlphaNodes [setting-coordinate]
+  {:pre [(s/validate SettingCoordinateSchema setting-coordinate)]}
+  (let [[node-id-key node-attr-key] setting-coordinate]
+   [(odr/map->AlphaNode
+     {:test-field :id
+      :test-value node-id-key
+      ;; dunno why, but this one in particular is necessary sometimes,
+      ;; (possibly always for id)
+      :children []})
+
+    (odr/map->AlphaNode
+     {:test-field :attr
+      :test-value node-attr-key})]))
+
+(defn odr-QuickBinding [sym]
+  (odr/->Binding :value sym (keyword sym)))
+
+(defn odr-QuickCondition
+  ([coordinate bind-symbol]
+   (odr-QuickCondition coordinate bind-symbol nil))
+  ([coordinate bind-symbol opts]
+   (odr/->Condition
+    (SettingCoordinate->AlphaNodes coordinate)
+    [(odr-QuickBinding bind-symbol)]
+    opts)))
+
 (def $world (r/atom {:t nil}))
 
 (def GlobalConfig
@@ -195,33 +225,9 @@
                         "cannot have matching background and foreground lightness because it will be hard to read"
                   
                         :odr.Conditions
-                        [(odr/->Condition
-                          [(odr/map->AlphaNode
-                            {:test-field :id
-                             :test-value ::display-contrast
-                             ;; dunno why, but this one in particular is necessary
-                             :children []})
-
-                           (odr/map->AlphaNode
-                            {:test-field :attr
-                             :test-value ::black-header})]
-
-                          [(odr/->Binding :value 'black-header? :black-header?)]
-
-                          nil)
-                   
-                         (odr/->Condition
-                          [(odr/map->AlphaNode
-                            {:test-field :id
-                             :test-value ::display-contrast})
-                           (odr/map->AlphaNode
-                            {:test-field :attr
-                             :test-value ::dark-background})]
-                   
-                          [(odr/->Binding :value 'dark-background? :dark-background?)]
-
-                          nil)]
-
+                        [(odr-QuickCondition [::display-contrast ::black-header] 'black-header?)
+                         (odr-QuickCondition [::display-contrast ::dark-background] 'dark-background?)]
+                        
                         :handler (fn cljs-xstate-example-core-warn-low-contrast
                                    [{:keys [dark-background?
                                             black-header?]}]
@@ -230,7 +236,7 @@
                                           (fn [cur-messages]
                                             (conj (set cur-messages)
                                                   "CONFLICT BACKGROUNDzz"))))
-
+                        
                         :filter (fn [{:keys [dark-background? black-header?]}]
                                   (and black-header? dark-background?))
                         })]
@@ -240,24 +246,11 @@
                        CustomRuleDefinition
                        {:description
                         "print the time!!!"
-
-                        :handler (fn [{:keys [tt]}]
-                                   (println "NOW--" tt))
-
+                        
                         :odr.Conditions
-                        [(odr/map->Condition
-                          {:nodes [(odr/map->AlphaNode
-                                    {:test-field :id
-                                     :test-value ::time
-                                     ;; dunno why, but this one in particular is necessary
-                                     :children []})
-                                   (odr/map->AlphaNode
-                                    {:test-field :attr
-                                     :test-value ::total})]
+                        [(odr-QuickCondition [::time ::total] 'tt)]
 
-                           :bindings [(odr/->Binding :value 'tt :tt)]
-                           
-                           :opts nil})]})]
+                        :handler (fn [{:keys [tt]}] (println "NOW--" tt))})]
 
                      [::show-alert
                       (s/validate
@@ -266,23 +259,11 @@
                         "show alert!!!"
 
                         :odr.Conditions
-                        [(odr/map->Condition
-                          {:nodes [(odr/map->AlphaNode
-                                    {:test-field :id,
-                                     :test-value ::alert,
-                                     :children []})
-                                   (odr/map->AlphaNode
-                                    {:test-field :attr
-                                     :test-value ::message})]
-                           
-                           :bindings [(odr/->Binding :value 'msg :msg)]
-
-                           :opts nil})]
-
+                        [(odr-QuickCondition [::alert ::message] 'msg)]
+                        
                         :handler (fn cljs-xstate-example-core-show-alert
                                    [{:keys [msg]}]
-                                   (js/alert msg))
-                        })]]
+                                   (js/alert msg))})]]
                     
                     (into {}))
                }
