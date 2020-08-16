@@ -23,7 +23,7 @@ stdenv.mkDerivation rec {
 
       alias start-server='lein run'
       alias compile-cljs='lein shadow compile app'
-      alias watch='lein shadow watch app'
+      alias watch-cljs='lein shadow watch app'
       cat default.nix | grep '^ \+\(function\|alias\) .\+'
     '';
 }
