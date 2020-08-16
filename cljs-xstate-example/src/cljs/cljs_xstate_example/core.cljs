@@ -179,6 +179,11 @@
   [(s/one s/Keyword "id")
    (s/one s/Keyword "attr")])
 
+(defn AlphaNodes->Coord [alpha-nodes]
+  (when (= 2 (count alpha-nodes))
+    [(:test-value (first alpha-nodes))
+     (:test-value (second alpha-nodes))]))
+
 (defn SettingCoordinate->AlphaNodes [setting-coordinate]
   {:pre [(s/validate SettingCoordinateSchema setting-coordinate)]}
   (let [[node-id-key node-attr-key] setting-coordinate]
@@ -225,8 +230,8 @@
                         "cannot have matching background and foreground lightness because it will be hard to read"
                   
                         :odr.Conditions
-                        [(odr-QuickCondition [::display-contrast ::black-header] 'black-header?)
-                         (odr-QuickCondition [::display-contrast ::dark-background] 'dark-background?)]
+                        [(odr-QuickCondition [::ui-style ::black-header] 'black-header?)
+                         (odr-QuickCondition [::ui-style ::dark-background] 'dark-background?)]
                         
                         :handler (fn cljs-xstate-example-core-warn-low-contrast
                                    [{:keys [dark-background?
@@ -350,6 +355,12 @@
                       {:source (aget dot-edge "v")
                        :target (aget dot-edge "w")})))})
 
+(defn get-global-setting-coord-value [coord]
+  (get-in @GlobalConfig [:settings coord :value]))
+
+(defn odr-insert-coord-setting-value [session coord]
+  (apply odr/insert session (conj coord (get-global-setting-coord-value coord))))
+
 (defn component [world]
   (def *session
     (atom
@@ -400,11 +411,8 @@
                                                  (-> session
                                                      (odr/insert ::time ::total (.getTime (js/Date.)))
                                                      
-                                                     ;; dark header / background rules
-                                                     (odr/insert ::display-contrast ::black-header
-                                                                 (get-in @GlobalConfig [:settings [::ui-style ::black-header] :value]))
-                                                     (odr/insert ::display-contrast ::dark-background
-                                                                 (get-in @GlobalConfig [:settings [::ui-style ::dark-background] :value]))
+                                                     (odr-insert-coord-setting-value [::ui-style ::black-header])
+                                                     (odr-insert-coord-setting-value [::ui-style ::dark-background])
                                                      
                                                      (odr/fire-rules))))
 
@@ -416,8 +424,7 @@
         (js->clj (aget -state "context") :keywordize-keys true)]
     
     [:div
-     {:style {:background (if (get-in @GlobalConfig
-                                      [:settings [::ui-style ::dark-background] :value])
+     {:style {:background (if (get-global-setting-coord-value [::ui-style ::dark-background])
                             "#222"
                             "#fff")}}
      
@@ -428,7 +435,7 @@
       (->> ["blue" "red"]
            (map (fn [color]
                   ^{:key ["button" color]}
-                  (let [limit (get-in @GlobalConfig [:settings [::demo-panel ::list-limit] :value])]
+                  (let [limit (get-global-setting-coord-value [::demo-panel ::list-limit])]
                     [:button
                      {:style { ;; :background color
                               :color color}
@@ -574,7 +581,7 @@
             [:th "#"]
             [:th "key"]
             [:th "description"]
-            [:th ""]]
+            [:th "coordinates"]]
 
            (->> (:custom-rules @GlobalConfig)
                 (map-indexed
@@ -585,7 +592,7 @@
                      {:style {:width "4em"}}
                      (inc i)]
                     [:td
-                     [:code (str key)]]
+                     [:code (name key)]]
                     [:td
                      {:style {:width "20em"
                               :font-size "x-small"}}
@@ -593,7 +600,18 @@
                     [:td
                      {:style {:font-family "monospace"
                               :font-size "x-small"}}
-                     ]])))
+                     (->> rule-row
+                          (:odr.Conditions)
+                          (map (fn [odr-cond]
+                                 (->> (AlphaNodes->Coord (:nodes odr-cond))
+                                      (map name)
+                                      (vec))))
+                          (map-indexed
+                           (fn [j coord-str]
+                             ^{:key [i j coord-str]}
+                             [:div
+                              [:code
+                               (pr-str coord-str)]])))]])))
            ]]]
 
 
@@ -666,7 +684,10 @@
                                      :cursor-path
                                      [:code
                                       {:style {:font-size "x-small"}}
-                                      (pr-str val)]
+                                      (->> val
+                                           (map name)
+                                           (vec)
+                                           (pr-str))]
                                    
                                      :value
                                      (if-let [[restriction-key args]
