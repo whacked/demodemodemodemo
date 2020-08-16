@@ -234,80 +234,106 @@
 (def $world (r/atom {:t nil}))
 
 (def GlobalConfig
-  (->> [(->Setting [::ui-style ::dark-background] false "dark mode"
-                   [:Boolean])
-        (->Setting [::ui-style ::black-header] true "black header"
-                   [:Boolean])
-        (->Setting [::demo-panel ::list-limit] 10 "maximum number of allowed items"
-                   [:MinMaxRange [0 20]])
+  (let [app-config-map
+        {:app-config
+         (->> [(->Setting [::ui-style ::dark-background] false "dark mode"
+                          [:Boolean])
+               (->Setting [::ui-style ::black-header] true "black header"
+                          [:Boolean])
+               (->Setting [::demo-panel ::list-limit] 10 "maximum number of allowed items"
+                          [:MinMaxRange [0 20]])
         
-        (->Setting [::ui-adaptive-mode ::optimize-for-speed] false "optimize for usage speed"
-                   [:Boolean])
-        (->Setting [::ui-adaptive-mode ::prefer-keyboard] false "prefer keyboard over mouse"
-                   [:Boolean])
-        (->Setting [::ui-adaptive-mode ::optimize-for-variety] false "optimize for learning new features"
-                   [:Boolean])
-        ]
-       (map (fn [setting]
-              [(:coordinate setting) setting]))
-       (into {})
-       (assoc {:custom-rules
-               (->> [[::warn-low-contrast
-                      (s/validate
-                       CustomRuleDefinition
-                       {:description
-                        "cannot have matching background and foreground lightness because it will be hard to read"
+               (->Setting [::ui-adaptive-mode ::optimize-for-speed] false "optimize for usage speed"
+                          [:Boolean])
+               (->Setting [::ui-adaptive-mode ::prefer-keyboard] false "prefer keyboard over mouse"
+                          [:Boolean])
+               (->Setting [::ui-adaptive-mode ::optimize-for-variety] false "optimize for learning new features"
+                          [:Boolean])
+               ]
+              (map (fn [setting]
+                     [(:coordinate setting) setting]))
+              (into {}))}
+        
+        custom-rules-map
+        {:custom-rules
+         (->> [[::warn-low-contrast
+                (s/validate
+                 CustomRuleDefinition
+                 {:description
+                  "cannot have matching background and foreground lightness because it will be hard to read"
                   
-                        :odr.Conditions
-                        [(odr-QuickCondition [::ui-style ::black-header] 'black-header?)
-                         (odr-QuickCondition [::ui-style ::dark-background] 'dark-background?)]
-                        
-                        :handler (fn cljs-xstate-example-core-warn-low-contrast
-                                   [{:keys [dark-background?
-                                            black-header?]}]
-                                   (js/console.log "CONFLICT")
-                                   (swap! $world update :messages
-                                          (fn [cur-messages]
-                                            (conj (set cur-messages)
-                                                  "CONFLICT BACKGROUNDzz"))))
-                        
-                        :filter (fn [{:keys [dark-background? black-header?]}]
-                                  (and black-header? dark-background?))
-                        })]
+                  :odr.Conditions
+                  [(odr-QuickCondition [::ui-style ::black-header] 'black-header?)
+                   (odr-QuickCondition [::ui-style ::dark-background] 'dark-background?)]
+                  
+                  :handler (fn cljs-xstate-example-core-warn-low-contrast
+                             [{:keys [dark-background?
+                                      black-header?]}]
+                             (js/console.log "CONFLICT")
+                             (swap! $world update :messages
+                                    (fn [cur-messages]
+                                      (conj (set cur-messages)
+                                            "CONFLICT BACKGROUNDzz"))))
+                  
+                  :filter (fn [{:keys [dark-background? black-header?]}]
+                            (and black-header? dark-background?))
+                  })]
 
-                     [::print-time
-                      (s/validate
-                       CustomRuleDefinition
-                       {:description
-                        "print the time!!!"
-                        
-                        :odr.Conditions
-                        [(odr-QuickCondition [::time ::total] 'tt)]
+               [::print-time
+                (s/validate
+                 CustomRuleDefinition
+                 {:description
+                  "print the time!!!"
+                  
+                  :odr.Conditions
+                  [(odr-QuickCondition [::time ::total] 'tt)]
 
-                        :handler (fn [{:keys [tt]}] (println "NOW--" tt))})]
+                  :handler (fn [{:keys [tt]}] (println "NOW--" tt))})]
 
-                     [::show-alert
-                      (s/validate
-                       CustomRuleDefinition
-                       {:description
-                        "show alert!!!"
+               [::show-alert
+                (s/validate
+                 CustomRuleDefinition
+                 {:description
+                  "show alert!!!"
 
-                        :odr.Conditions
-                        [(odr-QuickCondition [::alert ::message] 'msg)]
-                        
-                        :handler (fn cljs-xstate-example-core-show-alert
-                                   [{:keys [msg]}]
-                                   (js/alert msg))})]]
-                    
-                    (into {}))
-               }
-              :settings)
-       (r/atom)))
+                  :odr.Conditions
+                  [(odr-QuickCondition [::alert ::message] 'msg)]
+                  
+                  :handler (fn cljs-xstate-example-core-show-alert
+                             [{:keys [msg]}]
+                             (js/alert msg))})]]
+              
+              (into {}))}
+
+        user-input-config-map
+        {}]
+    
+    (r/atom
+     (merge
+      app-config-map
+      custom-rules-map
+      user-input-config-map))))
 
 (s/defrecord StateTree
     [id       :- s/Int
      state    :- s/Any
      children :- []])
+
+(defn get-node-in-level
+  ;; nil means no limit
+  ([state-tree]
+   (get-node-in-level state-tree nil))
+  ([state-tree level-limit]
+   (if (int? level-limit)
+     (if (= 0 level-limit)
+       state-tree
+       (-> (:children state-tree)
+           (last)
+           (get-node-in-level (dec level-limit))))
+     (let [children (:children state-tree)]
+       (if (empty? children)
+         state-tree
+         (get-node-in-level (last children) nil))))))
 
 (defn state-history-to-graph-state
   ([stree]
@@ -315,9 +341,15 @@
   ([stree out]
    (if-not (:id stree)
      out
-     (let [to-node (fn [t]
-                     (assoc (select-keys t [:id])
-                            :label (:id t)))
+     (let [terminal-node (get-node-in-level stree)
+           
+           to-node (fn [t]
+                     (merge
+                      (select-keys t [:id])
+                      {:label (:id t)}
+                      (when (= (:id t)
+                               (:id terminal-node))
+                        {:config {:style "fill: red"}})))
            next-out
            (apply
             merge-with
@@ -342,11 +374,14 @@
 
 (def all-settings-state-history
   (r/atom (->StateTree
-           1 (get-in @GlobalConfig [:settings]) [])))
+           1 (get-in @GlobalConfig [:app-config]) [])))
 
 (def graph-state-atom
   (r/atom
    (state-history-to-graph-state @all-settings-state-history)))
+
+(defn get-global-setting-coord-value [coord]
+  (get-in @GlobalConfig [:app-config coord :value]))
 
 (defn push-settings-to-history! []
 
@@ -358,7 +393,7 @@
       state-tree :children
       (fn [cur-children]
         (if (empty? cur-children)
-          (conj cur-children (->StateTree next-id (get-in @GlobalConfig [:settings]) []))
+          (conj cur-children (->StateTree next-id (get-in @GlobalConfig [:app-config]) []))
           (update
            cur-children
            (dec (count cur-children))
@@ -390,9 +425,6 @@
                (map (fn [dot-edge]
                       {:source (aget dot-edge "v")
                        :target (aget dot-edge "w")})))})
-
-(defn get-global-setting-coord-value [coord]
-  (get-in @GlobalConfig [:settings coord :value]))
 
 (defn odr-insert-coord-setting-value [session coord]
   (apply odr/insert session (conj coord (get-global-setting-coord-value coord))))
@@ -453,7 +485,7 @@
                                  :on-change (fn [evt]
                                               (->> (aget evt "target" "checked")
                                                    (swap! rcursor assoc :value))
-                                              ;; (push-settings-to-history!)
+                                              (push-settings-to-history!)
 
                                               (swap!
                                                *session
@@ -650,7 +682,7 @@
                                        (clojure.string/includes?
                                         (:description setting)
                                         settings-filter-string))))
-               records (->> (get-in @GlobalConfig [:settings])
+               records (->> (get-in @GlobalConfig [:app-config])
                             (vals)
                             (filter settings-filter))]
            (when-let [header-keys (some->> records
@@ -693,7 +725,7 @@
                                        (some-> (get-in SettingRestriction [restriction-key])
                                                (apply (conj (vec args)
                                                             (r/cursor GlobalConfig
-                                                                      [:settings (:coordinate setting)])))
+                                                                      [:app-config (:coordinate setting)])))
                                                (:component))
 
                                        (str val))
@@ -745,20 +777,6 @@
                               {:style {:line-height "2.5em"}}
                               (render-coordinate-tag coord)])))]])))
            ]]]
-
-        [grid
-         {:item true}
-         [textarea-autosize
-          {:rows-min 20
-           :style {:width "100%"
-                   :height "100%"}
-           :value (-> (->> (get-in @GlobalConfig [:settings])
-                           (map (fn [[k setting]]
-                                  [k (dissoc setting :restriction)]))
-                           (into {})
-                           (clj->js))
-                      (js/JSON.stringify nil 2))}
-          ]]
 
         [:h2 "graph state"]
         [grid
