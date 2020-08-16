@@ -16,6 +16,10 @@
    [schema.core :as s :include-macros true]
 
    
+   ["color-hash" :as ColorHash]
+   ["object-hash" :as ObjectHash]
+   [thi.ng.color.core :as col]
+
    [reagent-material-ui.core.switch-component :refer [switch]]
    
 
@@ -42,6 +46,23 @@
    )
   (:import (goog.i18n DateTimeSymbols_en_US)))
 
+
+
+
+(defn to-hex-color [object]
+  ;; dupe of wksymclj
+  (let [hash (ObjectHash (clj->js object))]
+    (-> (new ColorHash)
+        (.hex hash))))
+
+(defn to-hex-color-light [object]
+  (let [hash (ObjectHash (clj->js object))]
+    (-> (new ColorHash (clj->js {:lightness 0.9}))
+        (.hex hash))))
+(defn to-hex-color-dark [object]
+  (let [hash (ObjectHash (clj->js object))]
+    (-> (new ColorHash (clj->js {:lightness 0.3}))
+        (.hex hash))))
 
 ;; ref
 ;; https://dev.to/robertbroersma/undo-redo-in-react-using-xstate-23j8
@@ -132,7 +153,7 @@
                               :future new-future}))))}}))))
 
 (s/defrecord Setting
-    [cursor-path :- s/Keyword
+    [coordinate  :- s/Keyword
      value       :- s/Any
      description :- s/Str
      restriction :- s/Keyword
@@ -218,9 +239,17 @@
         (->Setting [::ui-style ::black-header] true "black header"
                    [:Boolean])
         (->Setting [::demo-panel ::list-limit] 10 "maximum number of allowed items"
-                   [:MinMaxRange [0 20]])]
+                   [:MinMaxRange [0 20]])
+        
+        (->Setting [::ui-adaptive-mode ::optimize-for-speed] false "optimize for usage speed"
+                   [:Boolean])
+        (->Setting [::ui-adaptive-mode ::prefer-keyboard] false "prefer keyboard over mouse"
+                   [:Boolean])
+        (->Setting [::ui-adaptive-mode ::optimize-for-variety] false "optimize for learning new features"
+                   [:Boolean])
+        ]
        (map (fn [setting]
-              [(:cursor-path setting) setting]))
+              [(:coordinate setting) setting]))
        (into {})
        (assoc {:custom-rules
                (->> [[::warn-low-contrast
@@ -367,6 +396,20 @@
 
 (defn odr-insert-coord-setting-value [session coord]
   (apply odr/insert session (conj coord (get-global-setting-coord-value coord))))
+
+(defn render-coordinate-tag [coordinate]
+  [:code
+   {:style {:font-size "small"
+            :color "black"
+            :padding "2px"
+            :word-spacing "1em"
+            :border-radius "4px"
+            :border (str "2px solid " (to-hex-color-dark coordinate))
+            :background (to-hex-color-light coordinate)}}
+   (->> coordinate
+        (map name)
+        (interpose " ")
+        (apply str))])
 
 (defn component [world]
   (def *session
@@ -574,7 +617,90 @@
         {:container true
          :direction "column"
          :spacing 1}
+        
+        [grid
+         {:item true}
+         (when-let [messages (:messages @world)]
+           (->> messages
+                (map (fn [message]
+                       ^{:key [:message message]}
+                       [:h3 message]))))]
+        
+        [grid
+         {:item true}
+         [text-field
+          {:style {:width "100%"}
+           :on-change (fn [evt]
+                        (let [value (aget evt "target" "value")]
+                          (swap! world assoc :settings-filter-string value)))}]]
 
+        [grid
+         {:item true}
+         
+         (let [settings-filter-string (:settings-filter-string @world)
+               settings-filter (if (empty? settings-filter-string)
+                                 identity
+                                 (fn [setting]
+                                   (or (some
+                                        (fn [k]
+                                          (clojure.string/includes?
+                                           (name k)
+                                           settings-filter-string))
+                                        (:coordinate setting))
+                                       (clojure.string/includes?
+                                        (:description setting)
+                                        settings-filter-string))))
+               records (->> (get-in @GlobalConfig [:settings])
+                            (vals)
+                            (filter settings-filter))]
+           (when-let [header-keys (some->> records
+                                           (first)
+                                           (keys)
+                                           (remove #{:restriction}))]
+             [:table
+              {:style {:width "100%"
+                       :display "flex"}}
+              [:tbody
+               [:tr
+                [:th "number"]
+                (->> header-keys
+                     (map name)
+                     (map-indexed
+                      (fn [i key]
+                        ^{:key [i key]}
+                        [:th (name key)])))]
+               (->> records
+                    (map-indexed
+                     (fn [i setting]
+                       ^{:key [i setting]}
+                       [:tr
+                        [:td
+                         (inc i)]
+                        (->> header-keys
+                             (map
+                              (fn [key]
+                                ^{:key [i key setting]}
+                                [:td
+                                 (let [val (key setting)]
+                                   (case key
+
+                                     :coordinate
+                                     (render-coordinate-tag val)
+                                   
+                                     :value
+                                     (if-let [[restriction-key args]
+                                              (get-in setting [:restriction])]
+                                       (some-> (get-in SettingRestriction [restriction-key])
+                                               (apply (conj (vec args)
+                                                            (r/cursor GlobalConfig
+                                                                      [:settings (:coordinate setting)])))
+                                               (:component))
+
+                                       (str val))
+
+                                     (str val)))
+                                 ])))])))]]))]
+        
         [grid
          {:item true}
          [:table
@@ -613,101 +739,12 @@
                                       (map name)
                                       (vec))))
                           (map-indexed
-                           (fn [j coord-str]
-                             ^{:key [i j coord-str]}
+                           (fn [j coord]
+                             ^{:key [i j coord]}
                              [:div
-                              [:code
-                               (pr-str coord-str)]])))]])))
+                              {:style {:line-height "2.5em"}}
+                              (render-coordinate-tag coord)])))]])))
            ]]]
-
-
-        [grid
-         {:item true}
-         (when-let [messages (:messages @world)]
-           (->> messages
-                (map (fn [message]
-                       ^{:key [:message message]}
-                       [:h3 message]))))]
-        
-        [grid
-         {:item true}
-         [text-field
-          {:style {:width "100%"}
-           :on-change (fn [evt]
-                        (let [value (aget evt "target" "value")]
-                          (swap! world assoc :settings-filter-string value)))}]]
-
-        [grid
-         {:item true}
-         
-         (let [settings-filter-string (:settings-filter-string @world)
-               settings-filter (if (empty? settings-filter-string)
-                                 identity
-                                 (fn [setting]
-                                   (or (some
-                                        (fn [k]
-                                          (clojure.string/includes?
-                                           (name k)
-                                           settings-filter-string))
-                                        (:cursor-path setting))
-                                       (clojure.string/includes?
-                                        (:description setting)
-                                        settings-filter-string))))
-               records (->> (get-in @GlobalConfig [:settings])
-                            (vals)
-                            (filter settings-filter))]
-           (when-let [header-keys (some->> records
-                                           (first)
-                                           (keys)
-                                           (remove #{:restriction}))]
-             [:table
-              {:style {:width "100%"
-                       :display "flex"}}
-              [:tbody
-               [:tr
-                [:th "number"]
-                (->> header-keys
-                     (map name)
-                     (map-indexed
-                      (fn [i key]
-                        ^{:key [i key]}
-                        [:th (name key)])))]
-               (->> records
-                    (map-indexed
-                     (fn [i setting]
-                       ^{:key [i setting]}
-                       [:tr
-                        [:td
-                         (inc i)]
-                        (->> header-keys
-                             (map
-                              (fn [key]
-                                ^{:key [i key setting]}
-                                [:td
-                                 (let [val (key setting)]
-                                   (case key
-
-                                     :cursor-path
-                                     [:code
-                                      {:style {:font-size "x-small"}}
-                                      (->> val
-                                           (map name)
-                                           (vec)
-                                           (pr-str))]
-                                   
-                                     :value
-                                     (if-let [[restriction-key args]
-                                              (get-in setting [:restriction])]
-                                       (some-> (get-in SettingRestriction [restriction-key])
-                                               (apply (conj (vec args)
-                                                            (r/cursor GlobalConfig
-                                                                      [:settings (:cursor-path setting)])))
-                                               (:component))
-
-                                       (str val))
-
-                                     (str val)))
-                                 ])))])))]]))]
 
         [grid
          {:item true}
