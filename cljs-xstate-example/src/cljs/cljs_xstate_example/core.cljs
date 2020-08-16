@@ -170,8 +170,13 @@
        (into {})))
 
 (def CustomRuleDefinition
-  {:description            s/Str
-   :odr.Conditions         [odr-Condition]})
+  {:description              s/Str
+   :odr.Conditions           [odr-Condition]
+   (s/optional-key :handler) s/Any
+   (s/optional-key :filter)  s/Any
+   })
+
+(def $world (r/atom {:t nil}))
 
 (def GlobalConfig
   (->> [(->Setting [::ui-style ::dark-background] false "dark mode"
@@ -231,13 +236,29 @@
                    
                           [(odr/->Binding :value 'dark-background? :dark-background?)]
 
-                          nil)]})]
+                          nil)]
+
+                        :handler (fn cljs-xstate-example-core-warn-low-contrast
+                                   [{:keys [dark-background?
+                                            black-header?]}]
+                                   (js/console.log "CONFLICT")
+                                   (swap! $world update :messages
+                                          (fn [cur-messages]
+                                            (conj (set cur-messages)
+                                                  "CONFLICT BACKGROUNDzz"))))
+
+                        :filter (fn [{:keys [dark-background? black-header?]}]
+                                  (and black-header? dark-background?))
+                        })]
 
                      [::print-time
                       (s/validate
                        CustomRuleDefinition
                        {:description
                         "print the time!!!"
+
+                        :handler (fn [{:keys [tt]}]
+                                   (println "NOW--" tt))
 
                         :odr.Conditions
                         [(odr/map->Condition
@@ -273,6 +294,10 @@
                            :bindings [(odr/->Binding :value 'msg :msg)]
 
                            :opts nil})]
+
+                        :handler (fn cljs-xstate-example-core-show-alert
+                                   [{:keys [msg]}]
+                                   (js/alert msg))
                         })]]
                     
                     (into {}))
@@ -363,40 +388,14 @@
 (defn component [world]
   (def *session
     (atom
-     (->>
-      [(let [key ::print-time]
-         (odr/->Rule key
-                     (get-in @GlobalConfig [:custom-rules key :odr.Conditions])
-                     (fn cljs-xstate-example-core-print-time
-                       [{:keys [tt]}]
-                       (println "NOW:" tt))
-                     nil))
-       (let [key ::show-alert]
-         (odr/->Rule key
-                     (get-in @GlobalConfig [:custom-rules key :odr.Conditions])
-                     (fn cljs-xstate-example-core-show-alert
-                       [{:keys [msg]}]
-                       (js/alert msg))
-                     nil))
-       
-       (let [key ::warn-low-contrast]
-         (odr/->Rule key (get-in @GlobalConfig [:custom-rules key :odr.Conditions])
-                     
-                     (fn cljs-xstate-example-core-warn-low-contrast
-                       [{:keys [dark-background? black-header?]}]
-                       (js/console.log "CONFLICT")
-                       (swap! world update :messages
-                              (fn [cur-messages]
-                                (conj (set cur-messages)
-                                      "CONFLICT BACKGROUND"))))
-                     
-                     (fn [{:keys [dark-background? black-header?]}]
-                       (and black-header? dark-background?))))]
-
-
-      (reduce odr/add-rule
-              (odr/->session))
-      )))
+     (->> (get-in @GlobalConfig [:custom-rules])
+          (map (fn [[rule-key rule-def]]
+                 (odr/->Rule rule-key
+                             (get-in rule-def [:odr.Conditions])
+                             (get-in rule-def [:handler])
+                             (get-in rule-def [:filter]))))
+          (reduce odr/add-rule
+                  (odr/->session)))))
   
   (def SettingRestriction
     {:MinMaxRange (fn [min max rcursor]
@@ -772,13 +771,13 @@
             (keys)
             (first))
 
-        world (r/atom {:t nil})]
+        ]
     
-    (swap! world assoc
+    (swap! $world assoc
            :-state (aget editorMachine "initialState")
            :-send (fn send [action-type & [payload]]
-                    (let [cur-state (:-state @world)]
-                      (swap! world assoc
+                    (let [cur-state (:-state @$world)]
+                      (swap! $world assoc
                              :t (str (js/Date.))
                              :-state (.transition
                                       editorMachine
@@ -787,7 +786,7 @@
                                                       payload)))))))
     
     (rdom/render
-     [component world]
+     [component $world]
      (gdom/getElement
       (name main-component-key)))))
 
