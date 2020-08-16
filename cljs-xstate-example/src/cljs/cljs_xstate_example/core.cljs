@@ -132,7 +132,7 @@
                               :future new-future}))))}}))))
 
 (s/defrecord Setting
-    [key         :- s/Keyword
+    [cursor-path :- s/Keyword
      value       :- s/Any
      description :- s/Str
      ruleset     :- [s/Any]
@@ -142,7 +142,15 @@
 (def odr-AlphaNodeSchema
   (->> (odr/map->AlphaNode {})
        (map (fn [[k _]]
-              [k s/Any]))
+              [k
+               (case k
+                 :children    [s/Any]
+                 :successors  [s/Any]
+                 :facts       s/Any
+                 :test-field  (s/enum :id :attr :value)
+                 :path        s/Any
+                 :test-value  s/Keyword)
+               ]))
        (into {})))
 
 (def odr-BindingSchema
@@ -162,9 +170,7 @@
        (into {})))
 
 (def CustomRuleDefinition
-  {:key                    s/Keyword
-   :description            s/Str
-   :fixme                  s/Any
+  {:description            s/Str
    :odr.Conditions         [odr-Condition]})
 
 (def GlobalConfig
@@ -178,63 +184,98 @@
                    []
                    [:MinMaxRange [0 20]])]
        (map (fn [setting]
-              [(:key setting) setting]))
+              [(:cursor-path setting) setting]))
        (into {})
        (assoc {:custom-rules
-               {::warn-low-contrast
-                (s/validate
-                 CustomRuleDefinition
-                 {:key ::warn-low-contrast
-
-                  :description
-                  "cannot have matching background and foreground lightness because it will be hard to read"
+               (->> [[::warn-low-contrast
+                      (s/validate
+                       CustomRuleDefinition
+                       {:description
+                        "cannot have matching background and foreground lightness because it will be hard to read"
                   
-                  :fixme
-                  [:what
-                   [::display-contrast ::black-header 'black-header?]
-                   [::display-contrast ::dark-background 'dark-background?]
-                   :when
-                   (and 'black-header? 'dark-background?)
-                   :then
-                   '(do
-                      (js/console.log "STYLE CONFLICT!")
-                      (swap! world update :messages
-                             (fn [cur-messages] (conj (set cur-messages) "BADZZ"))))]
+                        ;; :fixme
+                        ;; [:what
+                        ;;  [::display-contrast ::black-header 'black-header?]
+                        ;;  [::display-contrast ::dark-background 'dark-background?]
+                        ;;  :when
+                        ;;  (and 'black-header? 'dark-background?)
+                        ;;  :then
+                        ;;  '(do
+                        ;;     (js/console.log "STYLE CONFLICT!")
+                        ;;     (swap! world update :messages
+                        ;;            (fn [cur-messages] (conj (set cur-messages) "BADZZ"))))]
                   
-                  :odr.Conditions
-                  [(odr/->Condition
-                    [(odr/map->AlphaNode
-                      {:test-field :id,
-                       :test-value ::display-contrast,
-                       :children []})
+                        :odr.Conditions
+                        [(odr/->Condition
+                          [(odr/map->AlphaNode
+                            {:test-field :id
+                             :test-value ::display-contrast
+                             ;; dunno why, but this one in particular is necessary
+                             :children []})
 
-                     (odr/map->AlphaNode
-                      {:test-field :attr
-                       :test-value ::black-header})]
+                           (odr/map->AlphaNode
+                            {:test-field :attr
+                             :test-value ::black-header})]
 
-                    [(odr/->Binding
-                      :value
-                      'black-header?
-                      :black-header?)]
+                          [(odr/->Binding :value 'black-header? :black-header?)]
 
-                    nil)
+                          nil)
                    
-                   (odr/->Condition
-                    [(odr/map->AlphaNode
-                      {:test-field :id
-                       :test-value ::display-contrast})
-                     (odr/map->AlphaNode
-                      {:test-field :attr
-                       :test-value ::dark-background})]
+                         (odr/->Condition
+                          [(odr/map->AlphaNode
+                            {:test-field :id
+                             :test-value ::display-contrast})
+                           (odr/map->AlphaNode
+                            {:test-field :attr
+                             :test-value ::dark-background})]
                    
-                    [(odr/->Binding
-                      :value
-                      'dark-background?
-                      :dark-background?)]
+                          [(odr/->Binding :value 'dark-background? :dark-background?)]
 
-                    nil)]}
-                 )
-                }
+                          nil)]})]
+
+                     [::print-time
+                      (s/validate
+                       CustomRuleDefinition
+                       {:description
+                        "print the time!!!"
+
+                        :odr.Conditions
+                        [(odr/map->Condition
+                          {:nodes [(odr/map->AlphaNode
+                                    {:test-field :id
+                                     :test-value ::time
+                                     ;; dunno why, but this one in particular is necessary
+                                     :children []})
+                                   (odr/map->AlphaNode
+                                    {:test-field :attr
+                                     :test-value ::total})]
+
+                           :bindings [(odr/->Binding :value 'tt :tt)]
+                           
+                           :opts nil})]})]
+
+                     [::show-alert
+                      (s/validate
+                       CustomRuleDefinition
+                       {:description
+                        "show alert!!!"
+
+                        :odr.Conditions
+                        [(odr/map->Condition
+                          {:nodes [(odr/map->AlphaNode
+                                    {:test-field :id,
+                                     :test-value ::alert,
+                                     :children []})
+                                   (odr/map->AlphaNode
+                                    {:test-field :attr
+                                     :test-value ::message})]
+                           
+                           :bindings [(odr/->Binding :value 'msg :msg)]
+
+                           :opts nil})]
+                        })]]
+                    
+                    (into {}))
                }
               :settings)
        (r/atom)))
@@ -319,155 +360,44 @@
                       {:source (aget dot-edge "v")
                        :target (aget dot-edge "w")})))})
 
-
-;; macro def
-;; {::print-time
-;;  [:what
-;;   [::time ::total tt]
-;;   :then
-;;   (println tt)]
-;;  ::show-alert
-;;  [:what
-;;   [::alert ::message msg]
-;;   :then
-;;   (js/alert msg)]
-;;  ::warn-low-contrast
-;;  [:what
-;;   [::display-contrast ::black-header black-header?]
-;;   [::display-contrast ::dark-background dark-background?]
-;;   :when
-;;   (and black-header? dark-background?)
-;;   :then
-;;   #_(odr/insert! ::alert ::message
-;;                  (str "dude wtf: "
-;;                       "bg " dark-background?
-;;                       " / header " black-header?))
-;;   (do
-;;     (js/console.log "CONFLICT")
-;;     (swap! world update :messages
-;;            (fn [cur-messages]
-;;              (conj (set cur-messages)
-;;                    "CONFLICT BACKGROUND"))))
-;;   ]
-;;  }
-
 (defn component [world]
-  (def
-    space
-    (let
-        [
-         
-         ]
-        {:rules
-         [(odr/->Rule
-           ::print-time
-           (mapv
-            odr/map->Condition
-            [{:bindings [{:field :value, :sym 'tt, :key :tt}],
-              :nodes
-              [{:path nil,
-                :test-field :id,
-                :test-value ::time,
-                :children [],
-                :successors [],
-                :facts {}}
-               {:path nil,
-                :test-field :attr,
-                :test-value ::total,
-                :children [],
-                :successors [],
-                :facts {}}],
-              :opts nil}])
-           (fn cljs-xstate-example-core-print-time
-             [{:keys [tt]}]
-             (println tt))
-           nil)
-          (odr/->Rule
-           ::show-alert
-           (mapv
-            odr/map->Condition
-            [{:bindings [{:field :value, :sym 'msg, :key :msg}],
-              :nodes
-              [{:path nil,
-                :test-field :id,
-                :test-value ::alert,
-                :children [],
-                :successors [],
-                :facts {}}
-               {:path nil,
-                :test-field :attr,
-                :test-value ::message,
-                :children [],
-                :successors [],
-                :facts {}}],
-              :opts nil}])
-           (fn cljs-xstate-example-core-show-alert
-             [{:keys [msg]}]
-             (js/alert msg))
-           nil)
-     
-          (odr/->Rule
-           ::warn-low-contrast
-           (if true  ;; false
-             (get-in @GlobalConfig [:custom-rules ::warn-low-contrast :odr.Conditions])
+  (def *session
+    (atom
+     (->>
+      [(let [key ::print-time]
+         (odr/->Rule key
+                     (get-in @GlobalConfig [:custom-rules key :odr.Conditions])
+                     (fn cljs-xstate-example-core-print-time
+                       [{:keys [tt]}]
+                       (println "NOW:" tt))
+                     nil))
+       (let [key ::show-alert]
+         (odr/->Rule key
+                     (get-in @GlobalConfig [:custom-rules key :odr.Conditions])
+                     (fn cljs-xstate-example-core-show-alert
+                       [{:keys [msg]}]
+                       (js/alert msg))
+                     nil))
+       
+       (let [key ::warn-low-contrast]
+         (odr/->Rule key (get-in @GlobalConfig [:custom-rules key :odr.Conditions])
+                     
+                     (fn cljs-xstate-example-core-warn-low-contrast
+                       [{:keys [dark-background? black-header?]}]
+                       (js/console.log "CONFLICT")
+                       (swap! world update :messages
+                              (fn [cur-messages]
+                                (conj (set cur-messages)
+                                      "CONFLICT BACKGROUND"))))
+                     
+                     (fn [{:keys [dark-background? black-header?]}]
+                       (and black-header? dark-background?))))]
 
-             (mapv
-              odr/map->Condition
-              [{:bindings
-                [{:field :value, :sym 'black-header?, :key :black-header?}],
-                :nodes
-                [{:path nil,
-                  :test-field :id,
-                  :test-value ::display-contrast,
-                  :children [],
-                  :successors [],
-                  :facts {}}
-                 {:path nil,
-                  :test-field :attr,
-                  :test-value ::black-header,
-                  :children [],
-                  :successors [],
-                  :facts {}}],
-                :opts nil}
-               {:bindings
-                [{:field :value, :sym 'dark-background?, :key :dark-background?}],
-                :nodes
-                [{:path nil,
-                  :test-field :id,
-                  :test-value ::display-contrast,
-                  :children [],
-                  :successors [],
-                  :facts {}}
-                 {:path nil,
-                  :test-field :attr,
-                  :test-value ::dark-background,
-                  :children [],
-                  :successors [],
-                  :facts {}}],
-                :opts nil}]))
-        
 
-           (fn cljs-xstate-example-core-warn-low-contrast
-             [{:keys [dark-background? black-header?]}]
-             (js/console.log "CONFLICT")
-             (swap! world update :messages
-                    (fn [cur-messages]
-                      (conj (set cur-messages)
-                            "CONFLICT BACKGROUNDZZZ"))))
-        
-           (fn [{:keys [dark-background? black-header?]}]
-             (and black-header? dark-background?)))]
-     
-     
-         }))
+      (reduce odr/add-rule
+              (odr/->session))
+      )))
   
-
-  (def *session (atom nil))
-  (defn refresh-rules! []
-    (reset! *session
-            (reduce odr/add-rule (odr/->session) (:rules space))))
-  (refresh-rules!)
-
   (def SettingRestriction
     {:MinMaxRange (fn [min max rcursor]
                     {:range {:min min :max max}
@@ -609,6 +539,14 @@
         [button
          {:variant  "contained"
           :color    "primary"
+          :on-click (fn [evt]
+                      (swap!
+                       *session
+                       (fn [session]
+                         (-> session
+                             (odr/insert ::alert ::message (str "FOO THE BARF "
+                                                                (js/Date.)))
+                             (odr/fire-rules)))))
           }
          "hellz yeah"]]
        
@@ -675,16 +613,15 @@
             [:th ""]]
 
            (->> (:custom-rules @GlobalConfig)
-                (vals)
                 (map-indexed
-                 (fn [i rule-row]
+                 (fn [i [key rule-row]]
                    ^{:key [i rule-row]}
                    [:tr
                     [:td
                      {:style {:width "4em"}}
                      (inc i)]
                     [:td
-                     [:code (str (:key rule-row))]]
+                     [:code (str key)]]
                     [:td
                      {:style {:width "20em"
                               :font-size "x-small"}}
@@ -724,7 +661,7 @@
                                           (clojure.string/includes?
                                            (name k)
                                            settings-filter-string))
-                                        (:key setting))
+                                        (:cursor-path setting))
                                        (clojure.string/includes?
                                         (:description setting)
                                         settings-filter-string))))
@@ -764,7 +701,7 @@
                                      :ruleset
                                      (count val)
 
-                                     :key
+                                     :cursor-path
                                      [:code
                                       {:style {:font-size "x-small"}}
                                       (pr-str val)]
@@ -775,7 +712,7 @@
                                        (some-> (get-in SettingRestriction [restriction-key])
                                                (apply (conj (vec args)
                                                             (r/cursor GlobalConfig
-                                                                      [:settings (:key setting)])))
+                                                                      [:settings (:cursor-path setting)])))
                                                (:component))
 
                                        (str val))
