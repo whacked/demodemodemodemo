@@ -10,4 +10,8 @@
  [mhuebert/shadow-env "0.1.6"]
  [com.cerner/clara-rules "0.20.0"]
  [net.sekao/odoyle-rules "0.3.0"]
- [arttuka/reagent-material-ui "4.11.0-1"]]
+ [arttuka/reagent-material-ui "4.11.0-1"]
+ 
+ [keybind "2.2.0"]
+ [maximgb/re-state "1.1.0"]
+ [thi.ng/color "1.4.0"]]
