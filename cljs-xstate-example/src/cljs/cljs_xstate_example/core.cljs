@@ -10,6 +10,7 @@
     :refer (Machine assign)]
    ["graphlib-dot" :as dot]
    ["dagre-d3-react" :default DagreGraph]
+   ["muuri-react" :refer [MuuriComponent]]
    [garden.core :as garden]
    [odoyle.rules :as odr]
    
@@ -1008,62 +1009,73 @@ skill1 [label=ONE];
            [:div
             [:code "total: "
              (count history)]
-            [:ul
-             {:style {:list-style "none"}}
+            [:> MuuriComponent
              (->> active-action-buttons
                   (map-indexed
                    (fn [i action]
-                     ^{:key [:button i action]}
-                     [:li
-                      {:style {:float "left"
-                               :margin "2px"
-                               :height "1.5em"}}
-                      (let [action-id (:id action)
-                            action-history (get history-by-action
-                                                action-id)
-                            click-count (count action-history)]
-                        [:button
-                         {:style {:type "button"
-                                  :border-radius "0.3em"
-                                  :padding-left "0.5em"
-                                  :padding-right "0.5em"
+                     (let [action-id (:id action)
+                           action-history (get history-by-action
+                                               action-id)
+                           click-count (count action-history)
+                           base-width 5]
+                       ^{:key [:button i action]}
+                       [:div
+                        {:class "card"
+                         :on-click (fn [_]
+                                     (swap! GlobalConfig
+                                            update
+                                            :action-history
+                                            conj
+                                            {:time (.getTime (js/Date.))
+                                             :id action-id}))
+                         :style {:border "2px solid blue"
+                                 :border-radius "0.3em"
+                                 :width (str base-width "em")
+                                 :margin "0.3em"
 
-                                  :background (if (get-in @GlobalConfig [:action-learning-strategy
-                                                                         [::ui-adaptive-mode ::optimize-for-variety]
-                                                                         :checked?])
-                                                (-> (col/rgba 1 0 0 (max 0 (- 1 (/ click-count 10))))
-                                                    (col/as-css)
-                                                    (:col))
-                                                nil)
+                                 :font-family "monospace"
 
-                                  :border-left
-                                  (when (and (get-in @GlobalConfig [:action-learning-strategy
-                                                                    [::ui-adaptive-mode ::optimize-for-retention]
+                                 :background (if (get-in @GlobalConfig [:action-learning-strategy
+                                                                        [::ui-adaptive-mode ::optimize-for-variety]
+                                                                        :checked?])
+                                               (-> (col/rgba 1 0 0 (max 0 (- 1 (/ click-count 10))))
+                                                   (col/as-css)
+                                                   (:col))
+                                               nil)
+
+                                 
+                                 :box-shadow (when (and (get-in @GlobalConfig [:action-learning-strategy
+                                                                               [::ui-adaptive-mode ::optimize-for-retention]
+                                                                               :checked?])
+                                                        (< 0 click-count))
+                                               (let [most-recent-click-time (-> action-history
+                                                                                (last)
+                                                                                (:time))
+
+                                                     spread-size (min 20
+                                                                      (-> (- now most-recent-click-time)
+                                                                          (/ 1000)
+                                                                          (/ 5)
+                                                                          (Math/round)))]
+                                                 (str
+                                                  "0 0 "
+                                                  (* 2 spread-size) "px "
+                                                  spread-size "px green")))
+
+                                 :height (if (get-in @GlobalConfig [:action-learning-strategy
+                                                                    [::ui-adaptive-mode ::optimize-for-speed]
                                                                     :checked?])
-                                             (< 0 click-count))
-                                    (str (let [most-recent-click-time (-> action-history
-                                                                          (last)
-                                                                          (:time))]
-                                           (min 20
-                                                (-> (- now most-recent-click-time)
-                                                    (/ 1000)
-                                                    (/ 5)
-                                                    (Math/round))))
-                                         "px solid black")) 
-
-                                  :height (if (get-in @GlobalConfig [:action-learning-strategy
-                                                                     [::ui-adaptive-mode ::optimize-for-speed]
-                                                                     :checked?])
-                                            (str (+ 100 (* 5 click-count)) "%")
-                                            "100%")}
-                          :on-click (fn [_]
-                                      (swap! GlobalConfig
-                                             update
-                                             :action-history
-                                             conj
-                                             {:time (.getTime (js/Date.))
-                                              :id action-id}))}
-                         (str action-id "(" click-count ")")])]))
+                                           (str (* base-width (+ 1 (/ (* 5 click-count) 100))) "em")
+                                           "100%")}}
+                        
+                        [:div
+                         {:class "card-remove"
+                          :on-click (fn []
+                                      (js/console.clear))}
+                         [:b "❌"]]
+                        
+                        (str action-id " (" click-count ")")])))
+                  
                   (doall))]]])
         
         [grid

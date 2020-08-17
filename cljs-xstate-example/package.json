@@ -9,6 +9,8 @@
     "color-hash": "^1.0.3",
     "dagre-d3-react": "^0.2.4",
     "graphlib-dot": "^0.6.4",
+    "muuri": "^0.9.3",
+    "muuri-react": "^3.1.6",
     "object-hash": "^2.0.3",
     "react-d3-tree": "^1.16.1",
     "react-transition-group": "^4.4.1",
