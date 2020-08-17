@@ -411,20 +411,62 @@
              @all-settings-state-history))))
 
 (def demo-digraph
-  (aget (.readMany dot "digraph { Ax -> B -> C; B -> D; }") 0))
+  (aget (.readMany dot
+                   "digraph {
+ROOT -> tutorial1;
+
+tutorial1 -> skill1;
+tutorial1 -> skill2;
+tutorial1 -> skill3;
+tutorial1 -> skill4;
+
+skill4 [label=\"BAR\",THING=1];
+skill1 [label=ONE];
+
+}") 0))
+
+(defn to-dot-style [style-map]
+  (->> style-map
+       (map (fn [[style-key style-value]]
+              (str (name style-key) ": " style-value ";")))
+       (apply str)))
 
 (defn digraph-to-dagre-graph
   [digraph]
   {:nodes (->> (.nodes digraph)
                (array-seq)
-               (map (fn [dot-node-name]
-                      {:id dot-node-name
-                       :label dot-node-name})))
+               (map (fn [dot-node-id]
+                      (let [node (.node digraph dot-node-id)]
+                       {:id dot-node-id
+                        :label (or (aget node "label")
+                                   dot-node-id)}))))
    :links (->> (.edges digraph)
                (array-seq)
                (map (fn [dot-edge]
                       {:source (aget dot-edge "v")
                        :target (aget dot-edge "w")})))})
+
+(defn digraph-to-skill-tree-dagre-graph
+  [sk-digraph]
+  (merge
+   {:nodes (->> (.nodes sk-digraph)
+                (array-seq)
+                (map (fn [dot-node-id]
+                       (let [node (.node sk-digraph dot-node-id)]
+                         {:id dot-node-id
+                          :config {:style "fill: lightblue"}
+                          :label (or (aget node "label")
+                                     dot-node-id)}))))
+    :links (->> (.edges sk-digraph)
+                (array-seq)
+                (map (fn [dot-edge]
+                       {:source (aget dot-edge "v")
+                        :target (aget dot-edge "w")})))}
+   {:width "100%"
+    :height "100%"
+    :zoomable true
+    :shape "rect"
+    :fitBoundaries true}))
 
 (defn odr-insert-coord-setting-value [session coord]
   (apply odr/insert session (conj coord (get-global-setting-coord-value coord))))
@@ -535,7 +577,21 @@
        {:on-click (fn []
                     (-send :REDO))
         :disabled (empty? future)}
-       "redo"]]
+       "redo"]
+
+      [button
+       {:variant  "contained"
+        :color    "primary"
+        :on-click (fn [evt]
+                    (swap!
+                     *session
+                     (fn [session]
+                       (-> session
+                           (odr/insert ::alert ::message (str "FOO THE BARF "
+                                                              (js/Date.)))
+                           (odr/fire-rules)))))
+        }
+       "hellz yeah"]]
      [:div
       {:style {:display "flex"
                :height "100vh"
@@ -563,11 +619,12 @@
           [:path
            {:stroke-width "2px"
             :stroke "#555"
-            :fill "#555"}]])]
+            :fill "#555"}]
+          [:.edgeLabels
+           {:font-family "monospace"}]])]
        
        [:> DagreGraph
         (merge
-         ;; (digraph-to-dagre-graph demo-digraph)
          @graph-state-atom
          {:width "100%"
           :height "100%"
@@ -583,26 +640,6 @@
                             (-> session
                                 (odr/insert ::time ::total (.getTime (js/Date.)))
                                 (odr/fire-rules)))))})]
-       ]
-      
-      [:div
-       {:style {:border "2px solid orange"
-                :display "flex"}}
-       [:div
-        [button
-         {:variant  "contained"
-          :color    "primary"
-          :on-click (fn [evt]
-                      (swap!
-                       *session
-                       (fn [session]
-                         (-> session
-                             (odr/insert ::alert ::message (str "FOO THE BARF "
-                                                                (js/Date.)))
-                             (odr/fire-rules)))))
-          }
-         "hellz yeah"]]
-       
        ]
       
       [:div
@@ -796,18 +833,149 @@
                           (clj->js)
                           (js/console.log)))}
          "graph state?"]
+
         [grid
          {:item true}
-         [textarea-autosize
-          {:rows-min 9
-           :style {:width "100%"
-                   :height "4em"
-                   :border-left "4px dashed red"}
-           :value (-> (odr/map->AlphaNode {})
-                      (pr-str))
-           
-           }
-          ]]]]]]))
+         [:div
+          [:ul
+           {:style {:list-style "none"}}
+           (->> [
+                 "action1"
+                 "action2"
+                 "action3"
+                 ]
+                (map-indexed
+                 (fn [i text]
+                   ^{:key [:li i text]}
+                   [:li
+                    {:style {:float "left"
+                             :margin "2px"}}
+                    [:button
+                     {:style {:type "button"
+                              :border-radius "0.3em"
+                              :padding-left "0.5em"
+                              :padding-right "0.5em"}}
+                     text]])))]]]
+        
+        [grid
+         {:item true
+          :style {:border "1px dashed black"
+                  :width "calc(100% - 2em)"
+                  :height "30em"}}
+         [:> DagreGraph
+          #_(digraph-to-skill-tree-dagre-graph demo-digraph)
+          (let [ROOT "ROOT"
+                
+                front-links ["link1"
+                             "link2"
+                             "link3"]
+
+                fixed-pages ["admin-page"
+                             "help-page"
+                             "profile-page"]
+
+                nodes (concat
+                       [{:id ROOT
+                         :label "ROOT"}]
+
+                       [{:id "skills"
+                         :label (->> ["skills"
+                                      "condition: show 1 extra"
+                                      "when average familiarity > 0.8"]
+                                     (interpose "\n")
+                                     (apply str))
+                         :config {:style (to-dot-style
+                                          {:stroke "#909"
+                                           :fill "skyblue"})}
+                         }
+                        ]
+                       
+                       [{:id "front-links"
+                         :label "links"}
+                        ]
+                       
+                       (->> fixed-pages
+                            (map (fn [page]
+                                   (let [props {:position :fixed
+                                                :disappears :never}]
+                                     {:id page
+                                      :label (->> props
+                                                  (map (fn [[k v]]
+                                                         (str (name k) ": " (name v))))
+                                                  (concat
+                                                   (let [header-length (+ 4 (count page))]
+                                                     [(str "," (apply str (take (- header-length 2) (repeat "-"))) ".")
+                                                      (str "| " page " |")
+                                                      (str "`" (apply str (take (- header-length 2) (repeat "-"))) "'")]))
+                                                  (interpose "\n")
+                                                  (apply str))
+                                      :config (if (empty? props)
+                                                {}
+                                                (if (= (:disappears props)
+                                                       :never)
+                                                  {:style 
+                                                   (to-dot-style
+                                                    {:stroke-width "5px"
+                                                     :stroke "blue"})}))}))))
+                       (->> front-links
+                            (map (fn [child-node]
+                                   {:id child-node
+                                    :label child-node})))
+
+                       [{:id "features"
+                         :label "features"}
+                        {:id "upload-video"
+                         :label "upload video"}
+                        {:id "check-timestamps"
+                         :label "check\nevent\ntimestamps"}
+                        {:id "annotate-video"
+                         :label "annotate video"}])
+                links (concat
+                       [
+                        [ROOT "front-links"]
+                        ]
+
+                       (->> fixed-pages
+                            (map (fn [page]
+                                   ["front-links" page])))
+                       (->> front-links
+                            (map (fn [child-node]
+                                   ["front-links" child-node])))
+                       
+                       [
+                        [ROOT "skills"]
+
+                        [ROOT "features"]
+                        ["features" "upload-video"
+                         {:label (->> ["conditions:"
+                                       "- points >= 5"]
+                                      (interpose "\n")
+                                      (apply str))
+                          :config {:style
+                                   (to-dot-style
+                                    {:stroke "red"
+                                     :stroke-width "5px"
+                                     })}}]
+                        ["upload-video" "annotate-video"
+                         {:label "OR"}]
+                        ["upload-video" "check-timestamps"
+                         {:label "OR"}]
+                        ])]
+            {:width "100%"
+             :height "100%"
+             :nodes nodes
+             :links (->> links
+                         (map (fn [spec]
+                                (let [[v w] (take 2 spec)
+                                      options (if (= 3 (count spec))
+                                                (last spec)
+                                                nil)]
+                                  (merge
+                                   {:source v
+                                    :target w}
+                                   options)))))})]
+         
+         ]]]]]))
 
 (defn init! []
   (let [main-component-key
