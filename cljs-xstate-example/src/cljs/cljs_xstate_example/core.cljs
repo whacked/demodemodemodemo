@@ -33,6 +33,7 @@
    [reagent-material-ui.core.chip :refer [chip]]
    [reagent-material-ui.core.css-baseline :refer [css-baseline]]
    [reagent-material-ui.core.grid :refer [grid]]
+   [reagent-material-ui.core.checkbox :refer [checkbox]]
    [reagent-material-ui.core.menu-item :refer [menu-item]]
    [reagent-material-ui.core.text-field :refer [text-field]]
    [reagent-material-ui.core.textarea-autosize :refer [textarea-autosize]]
@@ -306,7 +307,38 @@
               (into {}))}
 
         user-input-config-map
-        {}]
+        {:action-learning-strategy
+         {[::ui-adaptive-mode ::optimize-for-speed]
+          {:checked? false
+           :description "optimize for speed (fitts's law: frequent use gains prominence)"}
+          
+          [::ui-adaptive-mode ::optimize-for-retention]
+          {:checked? false
+           :description "optimize for retention (infrequent use gains prominence)"}
+          
+          [::ui-adaptive-mode ::optimize-for-variety]
+          {:checked? false
+           :description "optimize for variety (LTM engagement: unused gain prominence)"}
+
+          [::ui-adaptive-mode ::stm-buffer-size]
+          {:number-of-items 4
+           :description "user acting STM buffer size"}
+          }
+
+         :action-buttons (->> [
+                               "action1"
+                               "action2"
+                               "action3"
+                               "action4"
+                               "action5"
+                               "action6"
+                               "action7"
+                               "action8"
+                               ]
+                              (map (fn [action-name]
+                                     {:id action-name
+                                      :checked? false})))
+         :action-history []}]
     
     (r/atom
      (merge
@@ -558,8 +590,8 @@ skill1 [label=ONE];
      [:div
       (->> ["blue" "red"]
            (map (fn [color]
-                  ^{:key ["button" color]}
                   (let [limit (get-global-setting-coord-value [::demo-panel ::list-limit])]
+                    ^{:key ["button" color]}
                     [:button
                      {:style { ;; :background color
                               :color color}
@@ -567,7 +599,8 @@ skill1 [label=ONE];
                                   (-send :ADD_SHAPE {:shape color}))
                       :disabled (>= (count items)
                                     limit)}
-                     (str color " " (count items) "/" limit)]))))
+                     (str color " " (count items) "/" limit)])))
+           (doall))
       [:button
        {:on-click (fn []
                     (-send :UNDO))
@@ -834,28 +867,204 @@ skill1 [label=ONE];
                           (js/console.log)))}
          "graph state?"]
 
-        [grid
-         {:item true}
-         [:div
-          [:ul
-           {:style {:list-style "none"}}
-           (->> [
-                 "action1"
-                 "action2"
-                 "action3"
-                 ]
-                (map-indexed
-                 (fn [i text]
-                   ^{:key [:li i text]}
-                   [:li
-                    {:style {:float "left"
-                             :margin "2px"}}
-                    [:button
-                     {:style {:type "button"
-                              :border-radius "0.3em"
-                              :padding-left "0.5em"
-                              :padding-right "0.5em"}}
-                     text]])))]]]
+        (let [history (get-in @GlobalConfig [:action-history])
+              history-by-action (group-by :id history)
+              stm-buffer-size-cursor-path [:action-learning-strategy
+                                           [::ui-adaptive-mode ::stm-buffer-size]
+                                           :number-of-items]
+              stm-buffer-size (get-in @GlobalConfig [:action-learning-strategy
+                                                     [::ui-adaptive-mode ::stm-buffer-size]
+                                                     :number-of-items])
+              active-action-buttons (->> (get-in @GlobalConfig [:action-buttons])
+                                         (take (or stm-buffer-size
+                                                   99999)))
+              now (-> (js/Date.)
+                      (.getTime))]
+          [grid
+           {:item true}
+           [:div
+            {:style {:display "flex"}}
+            [:div
+             "strats"
+             {:style {:display "flex"}}
+             [:ol
+              {:style {:padding-left "2em"}}
+              [:li
+               [text-field
+                {:label "number of items"
+                 :type "number"
+                 :value (get-in @GlobalConfig stm-buffer-size-cursor-path)
+                 :on-change (fn [evt]
+                              (let [value (-> (aget evt "target" "value")
+                                              (js/parseInt))]
+                                (cond (= 0 value)
+                                      (swap! GlobalConfig assoc-in stm-buffer-size-cursor-path nil)
+
+                                      (< 0 value)
+                                      (swap! GlobalConfig assoc-in stm-buffer-size-cursor-path value)
+
+                                      :else
+                                      nil)))}]
+               "STM buffer size"]
+              (->> (get-in @GlobalConfig
+                           [:action-learning-strategy])
+                   (filter
+                    (fn [[_ props]]
+                      (not (nil? (:checked? props)))))
+                   (map-indexed
+                    (fn [i [strategy-coordinate props]]
+                      ^{:key [strategy-coordinate]}
+                      [:li
+                       [:label
+                        [checkbox
+                         {:checked (:checked? props)
+                          :on-change
+                          (fn [evt]
+                            (swap! GlobalConfig
+                                   assoc-in
+                                   [:action-learning-strategy
+                                    strategy-coordinate
+                                    :checked?]
+                                   (aget evt "target" "checked")))}]
+                        (:description props)]])))]]
+            [:div
+             {:style {:display "flex"
+                      :font-family "monospace"}}
+             (let [calculate-stats
+                   (fn [action]
+                     (let [action-history (history-by-action (:id action))
+                           latest-time (-> action-history
+                                           (last)
+                                           (:time))]
+                       {:total (count action-history)
+                        :earliest (-> action-history
+                                      (first)
+                                      (:time))
+                        :latest latest-time
+                        :familiarity-score (if latest-time
+                                             (cond (-> (- now latest-time)
+                                                       (/ 1000)
+                                                       (< 120) ;; time after which it's considered out of TOM
+                                                       )
+                                                   1
+
+                                                   )
+                                             nil)}))
+
+                   action-stats (->> (get-in @GlobalConfig [:action-buttons])
+                                     (map (fn [action]
+                                            [(:id action)
+                                             (calculate-stats action)]))
+                                     (into {}))]
+               [:div
+                [:ol
+                 (->> (get-in @GlobalConfig [:action-buttons])
+                      (map-indexed
+                       (fn [i action]
+                         ^{:key [:stat i action]}
+                         [:li
+                          [:b (:id action)]
+                          [:ul
+                           (->> (action-stats (:id action))
+                                (map (fn [[k v]]
+                                       ^{:key [:stat k v]}
+                                       [:li (name k) ": " (str v)])))]])))]
+
+                (when (< 0 (count active-action-buttons))
+                  (let [num-buttons-in-use
+                        (->> active-action-buttons
+                             (map :id)
+                             (map action-stats)
+                             (map :total)
+                             (remove (partial = 0))
+                             (count))
+                       
+                        average-active-familiarity
+                        (if (< 0 num-buttons-in-use)
+                          (->> active-action-buttons
+                               (map :id)
+                               (map action-stats)
+                               (map :familiarity-score)
+                               (remove nil?)
+                               (apply +)
+                               (* (/ 1 num-buttons-in-use)))
+                          nil)]
+
+                    [:div
+                     [:h3 "familiarity average: "]
+                     average-active-familiarity
+                    
+                     (when (and
+                            (= num-buttons-in-use (count active-action-buttons))
+                            average-active-familiarity
+                            (< 0.7 average-active-familiarity))
+                       [:button
+                        {:type "button"
+                         :on-click (fn [_]
+                                     (swap! GlobalConfig update-in stm-buffer-size-cursor-path inc))}
+                        "increase STM size"])]))])
+             ]
+            ]
+           [:div
+            [:code "total: "
+             (count history)]
+            [:ul
+             {:style {:list-style "none"}}
+             (->> active-action-buttons
+                  (map-indexed
+                   (fn [i action]
+                     ^{:key [:button i action]}
+                     [:li
+                      {:style {:float "left"
+                               :margin "2px"
+                               :height "1.5em"}}
+                      (let [action-id (:id action)
+                            action-history (get history-by-action
+                                                action-id)
+                            click-count (count action-history)]
+                        [:button
+                         {:style {:type "button"
+                                  :border-radius "0.3em"
+                                  :padding-left "0.5em"
+                                  :padding-right "0.5em"
+
+                                  :background (if (get-in @GlobalConfig [:action-learning-strategy
+                                                                         [::ui-adaptive-mode ::optimize-for-variety]
+                                                                         :checked?])
+                                                (-> (col/rgba 1 0 0 (max 0 (- 1 (/ click-count 10))))
+                                                    (col/as-css)
+                                                    (:col))
+                                                nil)
+
+                                  :border-left
+                                  (when (and (get-in @GlobalConfig [:action-learning-strategy
+                                                                    [::ui-adaptive-mode ::optimize-for-retention]
+                                                                    :checked?])
+                                             (< 0 click-count))
+                                    (str (let [most-recent-click-time (-> action-history
+                                                                          (last)
+                                                                          (:time))]
+                                           (min 20
+                                                (-> (- now most-recent-click-time)
+                                                    (/ 1000)
+                                                    (/ 5)
+                                                    (Math/round))))
+                                         "px solid black")) 
+
+                                  :height (if (get-in @GlobalConfig [:action-learning-strategy
+                                                                     [::ui-adaptive-mode ::optimize-for-speed]
+                                                                     :checked?])
+                                            (str (+ 100 (* 5 click-count)) "%")
+                                            "100%")}
+                          :on-click (fn [_]
+                                      (swap! GlobalConfig
+                                             update
+                                             :action-history
+                                             conj
+                                             {:time (.getTime (js/Date.))
+                                              :id action-id}))}
+                         (str action-id "(" click-count ")")])]))
+                  (doall))]]])
         
         [grid
          {:item true
