@@ -9,6 +9,7 @@ stdenv.mkDerivation rec {
 
     buildInputs = [
         nodejs-10_x
+        watchexec
     ];
 
     shellHook = ''
@@ -21,6 +22,7 @@ stdenv.mkDerivation rec {
       fi
 
       alias watch='shadow-cljs watch main server'
+      alias wserver="watchexec --restart --no-ignore --watch app/ node app/server.js"
 
       cat default.nix | grep '^ \+\(function\|alias\) .\+'
     '';

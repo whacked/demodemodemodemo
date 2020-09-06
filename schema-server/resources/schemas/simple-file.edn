@@ -1,0 +1,4 @@
+{:path :s/Str
+ :size :s/Int
+ :mtime :s/Int
+ :permissions [:s/Int]}
