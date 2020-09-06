@@ -101,7 +101,16 @@
             (->> "[term-prefix]"
                  (.red chalk)
                  (.bold chalk)
-                 (.italic chalk)) " $ ")))))))
+                 (.italic chalk)) " $ "))))))
+   (fn after-initialize [term]
+     (let [ps1 (str
+                "Hello from "
+                (->> "xterm.js"
+                     (.red chalk)
+                     (.bold chalk)
+                     (.italic chalk))
+                " $ ")]
+      (.write term ps1))))
 
   (let [state (r/atom {:input nil})]
     (r/render
