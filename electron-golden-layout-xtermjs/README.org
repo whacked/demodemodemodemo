@@ -1,4 +1,22 @@
-* demo
+* shell executor demo
 
-[[file:doc/img/Screenshot_2020-04-04_21-45-43.png]]
+  using =child_process.spawn=
+  
+** electron
 
+   (only works by default on older electron < 5, see https://www.electronjs.org/docs/tutorial/security#2-do-not-enable-nodejs-integration-for-remote-content)
+
+   =child_process= is executed in the electron process
+
+   [[file:doc/img/Screenshot_2020-04-04_21-45-43.png]]
+
+** browser
+
+   simple demo of macchiato webserver with HTTP and websockets
+
+   client sends commands over websockets to server, which executes using =child_process=, then sends stdout back to client
+
+   [[file:doc/img/Screenshot_2020-09-06_12-13-45.png]]
+
+   the browser setup is 100% clojure/script for all html/css/js components
+   
