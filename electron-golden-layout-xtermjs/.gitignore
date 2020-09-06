@@ -5,6 +5,7 @@ node_modules
 manifest.edn
 
 app/main.js
+app/server.js
 app/js/*.js
 app/css/combined.css
 
