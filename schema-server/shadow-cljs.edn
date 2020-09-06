@@ -1,0 +1,28 @@
+{:source-paths ["src"]
+ :dependencies [[org.clojure/core.async "1.1.587"]
+                [cider/cider-nrepl "0.16.0-SNAPSHOT"]
+                [org.clojars.nenadalm/uri "0.1.2-SNAPSHOT"]
+                [reagent "0.9.1"]
+                [swiss-arrows "1.0.0" :exclusions [org.clojure]]
+                [funcool/promesa "5.1.0"]
+                [org.clojure/data.json "1.0.0"]
+                [metosin/malli "0.0.1-SNAPSHOT"]
+                [metosin/reitit "0.5.1"]
+                [camel-snake-kebab "0.4.1"]
+                [stylefy "1.13.3"]
+                [macchiato/core "0.2.16"]
+                [macchiato/hiccups "0.4.1"]
+                ;; beware potential conflicts with sente
+                [com.taoensso/encore "2.127.0"]
+                [com.taoensso/timbre "4.10.0" :exclusions [com.taoensso/encore]]
+                ]
+ 
+ :dev-http {8080 "target/"}
+ :builds {:main {:target :browser
+                 :output-dir "app/js"
+                 :asset-path "js"
+                 :modules {:front {:init-fn schema-server.front/init!}}}
+          
+          :server {:target :node-script
+                   :output-to "app/server.js"
+                   :main schema-server.server/main}}}
