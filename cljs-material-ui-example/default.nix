@@ -14,7 +14,7 @@ stdenv.mkDerivation rec {
     shellHook = ''
       unset name
       export PATH=$PATH:$(npm bin)
-      if $(which shadow-cljs 2> /dev/null); then
+      if (which shadow-cljs 2> /dev/null); then
           echo "shadow-cljs is in $(which shadow-cljs)"
       else
           npm install
