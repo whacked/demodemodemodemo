@@ -29,7 +29,7 @@
     (when stderr
       (bind-data-stream! "stderr" stdout))
     (when exit
-      (.on proc "exit" exit))))
+      (.on ^js/Object proc "exit" exit))))
 
 (defn execute-process-capture-stdout! [cmd]
   (let [t0 (js/Date.)
