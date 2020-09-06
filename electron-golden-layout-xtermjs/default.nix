@@ -23,11 +23,20 @@ stdenv.mkDerivation rec {
           yarn add shadow-cljs react create-react-class react-dom
       fi
 
-      alias watch='shadow-cljs watch main renderer'
+      alias watch-electron='shadow-cljs watch main renderer'
+
+      # one problem with watching both server and front at the same time
+      # is that CLJS auto reload on the front will happen before the
+      # server process restarts
+      alias watch-web='shadow-cljs watch web-server web-front'
+      alias watch-web-server='shadow-cljs watch web-server'
+      alias watch-web-front='shadow-cljs watch web-front'
+
       alias pack-css='shadow-cljs run app.pack/css'  # run after watch server started
       alias launch='electron .'
 
       cat default.nix | grep '^ \+\(function\|alias\) .\+'
+      alias wserver="watchexec --restart --no-ignore --watch app/ node app/server.js"
     '';
 }
 
