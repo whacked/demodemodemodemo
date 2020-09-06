@@ -1,0 +1,28 @@
+with import <nixpkgs> {};
+
+stdenv.mkDerivation rec {
+    name = "schema-server";
+    env = buildEnv {
+        name = name;
+        paths = buildInputs;
+    };
+
+    buildInputs = [
+        nodejs-10_x
+    ];
+
+    shellHook = ''
+      unset name
+      export PATH=$PATH:$(npm bin)
+      if (which shadow-cljs 2> /dev/null); then
+          echo "shadow-cljs is in $(which shadow-cljs)"
+      else
+          npm install shadow-cljs react create-react-class react-dom
+      fi
+
+      alias watch='shadow-cljs watch main server'
+
+      cat default.nix | grep '^ \+\(function\|alias\) .\+'
+    '';
+}
+
