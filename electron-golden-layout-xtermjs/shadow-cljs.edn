@@ -13,6 +13,7 @@
                 [metosin/malli "0.0.1-SNAPSHOT"]
                 [metosin/reitit "0.5.1"]
                 [camel-snake-kebab "0.4.1"]
+                [stylefy "1.13.3"]
                 [macchiato/core "0.2.16"]
                 [macchiato/hiccups "0.4.1"]
                 ;; beware potential conflicts with sente
@@ -35,18 +36,13 @@
                      :modules {:renderer {:entries [app.renderer]}}
 
                      :devtools {:before-load app.renderer/stop
-                                :after-load app.renderer/start}
-                     }
+                                :after-load app.renderer/start}}
 
           :web-front {:target :browser
                       :output-dir "app/js"
                       :asset-path "js"
-                      :modules {:front {:entries [app.webapp-front]}}
-                     }
+                      :modules {:front {:init-fn app.webapp-front/init!}}}
 
           :web-server {:target :node-script
                        :output-to "app/server.js"
-                       :main app.webapp-server/main
-                       :devtools {:after-load app.main/reload!}}
-          }}
-
+                       :main app.webapp-server/main}}}
