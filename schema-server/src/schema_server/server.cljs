@@ -30,6 +30,11 @@
    :headers {"Content-Type" "text/html"}
    :body body})
 
+(defn json-response [body]
+  {:status 200
+   :headers {"Content-Type" "application/json"}
+   :body body})
+
 (defn hiccup-response [& hiccup-forms]
   (html-response (h/html5 hiccup-forms)))
 
@@ -78,6 +83,94 @@
        (glob)
        (map read-to-SchemaFile)))
 
+(defn get-matching-schema [schema-name]
+  (some->> (discover-schemas)
+           (filter (fn [schema]
+                     (= schema-name (:name schema))))
+           (first)))
+
+(defn to-json [clj-object]
+  (.stringify js/JSON (clj->js clj-object) nil 2))
+
+(defn extract-route-structure
+  ([route-def]
+   (extract-route-structure route-def []))
+  ([route-def out]
+   (if (sequential? route-def)
+     (concat
+      out
+      (let [route-parent (first route-def)]
+        (if (= route-parent "")
+          nil
+          (->> (rest route-def)
+               (map (fn [route-child]
+                      (let [subroutes
+                            (extract-route-structure route-child)]
+                        (if (empty? subroutes)
+                          [route-parent]
+                          [route-parent subroutes])))))))))))
+
+(defn expand-nested-routes
+  ([route-structure]
+   (expand-nested-routes
+    []
+    route-structure))
+  ([prefix
+    route-structure]
+   (if (empty? route-structure)
+     nil
+     
+     (let [head (first route-structure)
+           tail (rest route-structure)]
+       (if (string? head)
+         (if (empty? tail)
+           [(conj prefix head)]
+           (->> tail
+                (map
+                 (fn [subroute]
+                   (expand-nested-routes
+                    (conj prefix head)
+                    subroute)))
+                (apply concat)))
+
+         (concat
+          (expand-nested-routes prefix head)
+          (expand-nested-routes prefix tail)))))))
+
+(defn add-help-route [routes]
+  (conj
+   routes
+   ["help"
+    {:get {:handler
+           (fn [request respond _]
+             (respond
+              (hiccup-response
+               [:head
+                [:meta {:content "text/html;charset=utf-8" :http-equiv "Content-Type"}]
+                [:meta {:content "utf-8" :http-equiv "encoding"}]
+                [:style
+                 (garden/css
+                  [[:* {:margin 0
+                        :padding 0}]])]]
+               [:body
+                [:h3 "ROUTES:"]
+                [:div
+                 [:ul
+                  (->> routes
+                       (extract-route-structure)
+                       (expand-nested-routes)
+                       (map (fn [expanded-route]
+                              (let [path
+                                    (clojure.string/replace
+                                     (->> expanded-route
+                                          (remove empty?)
+                                          (interpose "/")
+                                          (apply str "/"))
+                                     #"/+" "/")]
+                                [:li
+                                 [:a {:href path}
+                                  path]]))))]]])))}}]))
+
 (def $routes
   ["/"
    ["" {:get {:handler
@@ -99,61 +192,51 @@
                     {:type "text/javascript"
                      :src "/js/front.js"}]])))}}]
 
-   ["help"
-    {:get {:handler
-           (fn [request respond _]
-             (respond
-              (hiccup-response
-               [:head
-                [:meta {:content "text/html;charset=utf-8" :http-equiv "Content-Type"}]
-                [:meta {:content "utf-8" :http-equiv "encoding"}]
-                [:style
-                 (garden/css
-                  [[:* {:margin 0
-                        :padding 0}]])]]
-               [:body
-                [:div
-                 (let [schemas (discover-schemas)]
-                   (when-let [entry-keys
-                              (some-> (first schemas)
-                                      (keys))]
-                     [:table
-                      {:border 1
-                       :width "100%"
-                       :style "font-size:small;font-family:monospace;"}
-                      [:tbody
-                       [:tr
-                        (->> entry-keys
-                             (map (fn [k]
-                                    [:th (name k)])))]
-                       (->> schemas
-                            (map
-                             (fn [schema-entry]
-                               [:tr
-                                (->> entry-keys
-                                     (map
-                                      (fn [k]
-                                        [:td
-                                         (let [value (k schema-entry)]
-                                           (case k
-                                             :definition
-                                             [:textarea
-                                              {:readonly "readonly"
-                                               :style "width: 100%"}
-                                              (case (:format schema-entry)
-                                                :edn
-                                                (with-out-str
-                                                  (cljs.pprint/pprint value))
+   ["schemas"
+    ["/"
+     [""
+      {:get {:handler
+             (fn [request respond _]
+               (respond
+                (json-response
+                 (-> (discover-schemas)
+                     (to-json)))))}}]
+     [":name"
+      [""
+       {:get {:handler
+              (fn [request respond _]
+                (let [schema-name (get-in request [:path-params :name])]
+                  (if-let [matching-schema
+                           (get-matching-schema schema-name)]
+                    (respond
+                     (json-response
+                      (-> matching-schema
+                          (clj->js)
+                          (to-json))))
+                    (respond
+                     {:status 404
+                      :headers {"Content-Type" "text/plain"}
+                      :body (str "not found: " schema-name)}))))}}]
 
-                                                :json
-                                                (.stringify
-                                                 js/JSON
-                                                 (clj->js value)
-                                                 nil 2)
+      ["/generate"
+       {:get {:handler
+              (fn [request respond _]
+                (let [schema-name (get-in request [:path-params :name])]
+                  (respond
+                   {:status 200
+                    :headers {"Content-Type" "text/plain"}
+                    :body (str "generator for "
+                               schema-name)})))}}]
 
-                                                nil)]
-                                           
-                                             value))])))])))]]))]])))}}]
+      ["/validate"
+       {:post {:handler
+               (fn [request respond _]
+                 (let [schema-name (get-in request [:path-params :name])]
+                   (respond
+                    {:status 200
+                     :headers {"Content-Type" "text/plain"}
+                     :body (str "validator for "
+                                schema-name)})))}}]]]]
    
    ["js/"
     ["*.js"
@@ -182,7 +265,7 @@
 (def app
   (ring/ring-handler
    (ring/router
-    [$routes]
+    [(add-help-route $routes)]
     {:data {:middleware
             [wrap-params
              wrap-keyword-params
