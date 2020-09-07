@@ -4,13 +4,10 @@
   (:require
    [hiccups.runtime]
    ["chalk" :as chalk]
-   ["fs" :as fs]
-   ["path" :as path]
-   ["glob" :as node-glob]
+   [schema-server.io :as sio]
    [cljs.core.async :refer [put! chan <! >! timeout close!]]
    [reitit.ring :as ring]
    [reitit.ring.coercion :as rrc]
-   [camel-snake-kebab.core :as csk]
    [macchiato.middleware.params :refer [wrap-params]]
    [macchiato.middleware.keyword-params :refer [wrap-keyword-params]]
    [macchiato.middleware.restful-format :as rf]
@@ -19,11 +16,6 @@
    [schema-server.schemas :as schemas]
    [taoensso.timbre :refer [info]]
    [garden.core :as garden]))
-
-(def $SCHEMA-RESOURCES-DIRECTORY
-  (.join path
-         (.cwd js/process)
-         "resources"))
 
 (defn html-response [body]
   {:status 200
@@ -38,50 +30,12 @@
 (defn hiccup-response [& hiccup-forms]
   (html-response (h/html5 hiccup-forms)))
 
-(defn join-path [& fragments]
-  (apply (aget path "join") fragments))
-
-(defn glob [pattern]
-  (-> (.sync node-glob pattern)
-      (array-seq)))
-
-(defn path-exists? [fpath]
-  (.existsSync fs fpath))
-
-(defn slurp [fpath]
-  (.readFileSync fs fpath "utf-8"))
-
-(defrecord SchemaFile [name format path definition])
-(defn read-to-SchemaFile [fpath]
-  (let [fname (-> fpath
-                  (clojure.string/split #"/")
-                  (last))
-        [fbasename
-         extension-string]
-        (clojure.string/split fname #"\." 2)
-
-        file-content (slurp fpath)
-
-        extension (-> extension-string
-                      (clojure.string/lower-case)
-                      (keyword))]
-    (SchemaFile.
-     (csk/->PascalCase fbasename)
-     extension
-     (clojure.string/replace
-      fpath
-      (re-pattern (str "^" $SCHEMA-RESOURCES-DIRECTORY))
-      "$resources")
-     (case extension
-       :edn (schemas/load-edn-schema file-content)
-       :json (schemas/load-json-schema file-content)
-       file-content))))
-
 (defn discover-schemas []
-  (->> (join-path
-        $SCHEMA-RESOURCES-DIRECTORY "schemas" "*.{edn,json}")
-       (glob)
-       (map read-to-SchemaFile)))
+  (->> (sio/join-path
+        schemas/$SCHEMA-RESOURCES-DIRECTORY
+        "schemas" "*.{edn,json}")
+       (sio/glob)
+       (map schemas/read-to-SchemaFile)))
 
 (defn get-matching-schema [schema-name]
   (some->> (discover-schemas)
@@ -207,7 +161,7 @@
               (fn [request respond _]
                 (let [schema-name (get-in request [:path-params :name])]
                   (if-let [matching-schema
-                           (get-matching-schema schema-name)]
+                           (some-> (get-matching-schema schema-name))]
                     (respond
                      (json-response
                       (-> matching-schema
@@ -218,15 +172,25 @@
                       :headers {"Content-Type" "text/plain"}
                       :body (str "not found: " schema-name)}))))}}]
 
-      ["/generate"
+      ["/generate-samples"
        {:get {:handler
               (fn [request respond _]
-                (let [schema-name (get-in request [:path-params :name])]
+                (if-let [matching-schema
+                         (some-> (get-in request [:path-params :name])
+                                 (get-matching-schema)
+                                 )]
                   (respond
-                   {:status 200
+                   (json-response
+                    (->> (range 10)
+                         (map (fn [i]
+                                (:definition
+                                 matching-schema)))
+                         (clj->js)
+                         (to-json))))
+                  (respond
+                   {:status 404
                     :headers {"Content-Type" "text/plain"}
-                    :body (str "generator for "
-                               schema-name)})))}}]
+                    :body "no matching schema"})))}}]
 
       ["/validate"
        {:post {:handler
@@ -244,9 +208,9 @@
       (fn [request respond _]
         (-> (or (when-let [target-file-name
                            (get-in request [:path-params :.js])]
-                  (let [js-path (.join path "app" "js" target-file-name)]
-                    (if (path-exists? js-path)
-                      (html-response (slurp js-path))
+                  (let [js-path (sio/join-path "app" "js" target-file-name)]
+                    (if (sio/path-exists? js-path)
+                      (html-response (sio/slurp js-path))
                       {:status 404
                        :body (str "not found: " js-path)})))
                 {:status 400
