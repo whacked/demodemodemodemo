@@ -17,14 +17,29 @@
    [taoensso.timbre :refer [info]]
    [garden.core :as garden]))
 
+(defn to-json [clj-object]
+  (.stringify js/JSON (clj->js clj-object) nil 2))
+
 (defn html-response [body]
   {:status 200
    :headers {"Content-Type" "text/html"}
    :body body})
 
+(defn text-response [body]
+  {:status 200
+   :headers {"Content-Type" "text/plain"}
+   :body body})
+
 (defn json-response [body]
   {:status 200
    :headers {"Content-Type" "application/json"}
+   :body (to-json body)})
+
+(defn edn-response [body]
+  {:status 200
+   :headers {"Content-Type" "text/plain"
+             ;; "application/edn"
+             }
    :body body})
 
 (defn hiccup-response [& hiccup-forms]
@@ -42,9 +57,6 @@
            (filter (fn [schema]
                      (= schema-name (:name schema))))
            (first)))
-
-(defn to-json [clj-object]
-  (.stringify js/JSON (clj->js clj-object) nil 2))
 
 (defn extract-route-structure
   ([route-def]
@@ -153,8 +165,7 @@
              (fn [request respond _]
                (respond
                 (json-response
-                 (-> (discover-schemas)
-                     (to-json)))))}}]
+                 (discover-schemas))))}}]
      [":name"
       [""
        {:get {:handler
@@ -162,15 +173,27 @@
                 (let [schema-name (get-in request [:path-params :name])]
                   (if-let [matching-schema
                            (some-> (get-matching-schema schema-name))]
-                    (respond
-                     (json-response
-                      (-> matching-schema
-                          (clj->js)
-                          (to-json))))
+                    (let [output-format
+                          (or (some-> (get-in request [:params :format])
+                                      (keyword))
+                              (:format matching-schema))]
+                      (case output-format
+                        :edn
+                        (respond
+                         (edn-response
+                          (with-out-str
+                            (-> (:source matching-schema)
+                                (cljs.pprint/pprint)))))
+
+                        :json
+                        (respond
+                         (json-response
+                          (:source matching-schema)))))
                     (respond
                      {:status 404
                       :headers {"Content-Type" "text/plain"}
-                      :body (str "not found: " schema-name)}))))}}]
+                      :body (str "not found: " schema-name)}))
+                  ))}}]
 
       ["/generate-samples"
        {:get {:handler
@@ -183,9 +206,8 @@
                    (json-response
                     (->> (range 10)
                          (map (fn [i]
-                                (:definition
+                                (schemas/generate-data-for-schema
                                  matching-schema)))
-                         (clj->js)
                          (to-json))))
                   (respond
                    {:status 404
