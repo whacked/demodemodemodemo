@@ -40,7 +40,16 @@
    :headers {"Content-Type" "text/plain"
              ;; "application/edn"
              }
-   :body body})
+   :body (with-out-str
+           (cljs.pprint/pprint
+            (js->clj body)))})
+
+(defn data-format-response [format body]
+  ((case format
+     :edn edn-response
+     :json json-response
+     identity)
+   body))
 
 (defn hiccup-response [& hiccup-forms]
   (html-response (h/html5 hiccup-forms)))
@@ -177,18 +186,23 @@
                           (or (some-> (get-in request [:params :format])
                                       (keyword))
                               (:format matching-schema))]
-                      (case output-format
-                        :edn
-                        (respond
-                         (edn-response
-                          (with-out-str
-                            (-> (:source matching-schema)
-                                (cljs.pprint/pprint)))))
+                      (respond
+                       (cond (= output-format
+                                (:format matching-schema))
+                             (data-format-response
+                              output-format
+                              (:source matching-schema))
 
-                        :json
-                        (respond
-                         (json-response
-                          (:source matching-schema)))))
+                             (= output-format :json)
+                             (-> (:definition matching-schema)
+                                 (schemas/plumatic-schema->json-schema)
+                                 (json-response))
+
+                             (= output-format :edn)
+                             (-> (:definition matching-schema)
+                                 (schemas/json-schema->plumatic-schema)
+                                 (edn-response)))))
+                    
                     (respond
                      {:status 404
                       :headers {"Content-Type" "text/plain"}
@@ -207,22 +221,21 @@
                     (->> (range 10)
                          (map (fn [i]
                                 (schemas/generate-data-for-schema
-                                 matching-schema)))
-                         (to-json))))
+                                 matching-schema))))))
                   (respond
                    {:status 404
                     :headers {"Content-Type" "text/plain"}
                     :body "no matching schema"})))}}]
 
-      ["/validate"
-       {:post {:handler
-               (fn [request respond _]
-                 (let [schema-name (get-in request [:path-params :name])]
-                   (respond
-                    {:status 200
-                     :headers {"Content-Type" "text/plain"}
-                     :body (str "validator for "
-                                schema-name)})))}}]]]]
+      #_["/validate"
+         {:post {:handler
+                 (fn [request respond _]
+                   (let [schema-name (get-in request [:path-params :name])]
+                     (respond
+                      {:status 200
+                       :headers {"Content-Type" "text/plain"}
+                       :body (str "validator for "
+                                  schema-name)})))}}]]]]
    
    ["js/"
     ["*.js"
