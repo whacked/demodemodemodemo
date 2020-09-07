@@ -71,8 +71,7 @@
         {s/Str {"type" "string"}
          s/Num {"type" "number"}
          s/Int {"type" "integer"}}]
-    (cond (or (= (type schema)
-                 s/Predicate))
+    (cond (get primitive-type-mapping schema)
           (primitive-type-mapping schema)
           
           (sequential? schema)
@@ -83,7 +82,7 @@
           (map? schema)
           {"type" "object"
            "properties" (->> schema
-                             (map (fn [[k v]] 
+                             (map (fn [[k v]]
                                     [(-plumatic-schema->json-schema k)
                                      (-plumatic-schema->json-schema v)]))
                              (into {}))}
