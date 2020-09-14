@@ -232,15 +232,23 @@
                     :headers {"Content-Type" "text/plain"}
                     :body "no matching schema"})))}}]
 
-      #_["/validate"
-         {:post {:handler
-                 (fn [request respond _]
-                   (let [schema-name (get-in request [:path-params :name])]
-                     (respond
-                      {:status 200
-                       :headers {"Content-Type" "text/plain"}
-                       :body (str "validator for "
-                                  schema-name)})))}}]]]]
+      ["/validate"
+       {:post {:handler
+               (fn [request respond _]
+                 (let [schema-name (get-in request [:path-params :name])
+                       schema-file (get-matching-schema schema-name)
+                       js-schema (-> (if (= :edn (:format schema-file))
+                                       (-> (:definition schema-file)
+                                           (schemas/-plumatic-schema->json-schema))
+                                       (:definition schema-file))
+                                     (clj->js))
+                       json-data (->> (:body request)
+                                      (.parse js/JSON))
+                       output (schemas/validate-js-data-with-schema
+                               json-data js-schema)]
+                   (respond
+                    (json-response
+                     output))))}}]]]]
    
    ["js/"
     ["*.js"

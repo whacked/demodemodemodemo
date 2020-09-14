@@ -4,6 +4,7 @@
    [schema-server.io :as sio]
    [schema.core :as s :include-macros true]
    [schema-generators.generators :as s-gen]
+   ["ajv" :as Ajv]
    ["json-schema-faker" :as jsf]))
 
 (def $SCHEMA-RESOURCES-DIRECTORY
@@ -145,3 +146,24 @@
     :edn (wrapped-g-generate definition)
     :json (.generate jsf (clj->js definition))
     nil))
+
+(defn validate-js-data-with-schema [js-data js-schema]
+  (let [ajv (Ajv.)
+        is-valid? (.validate ajv js-schema js-data)]
+    (if is-valid?
+      {:status "ok"
+       :errors []}
+      {:status "error"
+       :errors (js->clj (aget ajv "errors"))})))
+
+(defn validate-data-with-schema [clj-data clj-schema]
+  (let [js-schema (clj->js clj-schema)
+        js-data (clj->js clj-data)
+        ajv (Ajv.)
+        is-valid? (.validate ajv js-schema js-data)]
+    (if is-valid?
+      {:status "ok"
+       :errors []}
+      {:status "error"
+       :errors (-> (aget ajv "errors")
+                   (js->clj))})))
