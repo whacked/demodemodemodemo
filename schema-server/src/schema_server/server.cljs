@@ -2,6 +2,7 @@
   (:require-macros
    [hiccups.core :as h])
   (:require
+   ["fs" :as fs]
    [hiccups.runtime]
    ["chalk" :as chalk]
    [schema-server.io :as sio]
@@ -16,6 +17,10 @@
    [schema-server.schemas :as schemas]
    [taoensso.timbre :refer [info]]
    [garden.core :as garden]))
+
+(def $config
+  (-> (.readFileSync fs "config.edn" "utf-8")
+      (cljs.reader/read-string)))
 
 (defn to-json [clj-object]
   (.stringify js/JSON (clj->js clj-object) nil 2))
@@ -281,8 +286,8 @@
                     " OK "
                     (apply str (take 50 (repeat "="))))))
 
-  (let [host "127.0.0.1"
-        port 7000]
+  (let [host (get-in $config [:server :host])
+        port (get-in $config [:server :port])]
 
     (-> {:handler app
          :host    host
