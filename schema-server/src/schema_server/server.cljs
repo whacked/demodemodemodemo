@@ -274,10 +274,10 @@
          (assoc-in [:params :body-params] (:body request))
          (assoc :body-params (:body request))) respond raise)))
 
-(def app
+(defn setup-app-with-routes [routes]
   (ring/ring-handler
    (ring/router
-    [(add-help-route $routes)]
+    [(add-help-route routes)]
     {:data {:middleware
             [wrap-params
              wrap-keyword-params
@@ -285,6 +285,8 @@
              rrc/coerce-request-middleware
              rrc/coerce-response-middleware]}})
    (ring/create-default-handler)))
+
+(def app (setup-app-with-routes $routes))
 
 (defn main []
   (js/console.log (.yellow
