@@ -40,9 +40,13 @@
   (let [fname (-> fpath
                   (clojure.string/split #"/")
                   (last))
-        [fbasename
-         extension-string]
-        (clojure.string/split fname #"\." 2)
+
+        split-fname (clojure.string/split fname #"\.")
+        fbasename (first split-fname)
+        extension-string (if (< 1 (count split-fname))
+                           (last split-fname)
+                           ;; FIXME: sloppy way to force default
+                           "json")
 
         file-content (sio/slurp fpath)
 
