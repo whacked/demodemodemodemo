@@ -1,5 +1,5 @@
 {:source-paths ["src"]
- :dependencies [[cider/cider-nrepl "0.16.0-SNAPSHOT"]
+ :dependencies [[cider/cider-nrepl "0.25.2"]
                 [org.clojars.nenadalm/uri "0.1.2-SNAPSHOT"]
                 [reagent "1.0.0-alpha2"]
                 [swiss-arrows "1.0.0" :exclusions [org.clojure]]
