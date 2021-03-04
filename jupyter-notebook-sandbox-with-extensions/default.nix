@@ -104,7 +104,7 @@ in stdenv.mkDerivation rec {
     alias build-docker-container='sudo $(which docker) build . -t emacs-with-nix'
     alias run-nix-docker-container='sudo $(which docker) run -p 8888:8888 -v $PWD:/opt/demo -w /opt/demo --rm -it emacs-with-nix /bin/bash'
     alias run='jupyter notebook --no-browser'
-    echo-shortcuts default.nix
+    echo-shortcuts ${__curPos.file}
   '';
 }
 

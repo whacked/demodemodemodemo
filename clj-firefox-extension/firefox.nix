@@ -30,6 +30,6 @@ in stdenv.mkDerivation rec {
       fi
     }
     trap __cleanup EXIT
-    echo-shortcuts default.nix
+    echo-shortcuts ${__curPos.file}
   '';
 }
