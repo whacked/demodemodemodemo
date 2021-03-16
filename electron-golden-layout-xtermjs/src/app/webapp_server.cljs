@@ -93,10 +93,12 @@
    ["css/combined.css"
     {:get {:handler
            (fn [request respond _]
-             (respond
-              {:status 200
-               :headers {"Content-Type" "text/css"}
-               :body (.readFileSync fs "app/css/combined.css" "utf-8")}))}}]])
+             (let [css-file-path
+                   (.join path js/__dirname "../node_modules/xterm/css/xterm.css")]
+               (respond
+                {:status 200
+                 :headers {"Content-Type" "text/css"}
+                 :body (.readFileSync fs css-file-path "utf-8")})))}}]])
 
 (defn wrap-body-to-params
   [handler]
