@@ -258,12 +258,12 @@
                            (get-in request [:path-params :.js])]
                   (let [js-path (sio/join-path "app" "js" target-file-name)]
                     (if (sio/path-exists? js-path)
-                      (html-response (sio/slurp js-path))
+                      (text-response (sio/slurp js-path))
                       {:status 404
                        :body (str "not found: " js-path)})))
                 {:status 400
                  :body (str "bad request")})
-            (assoc-in [:headers :content-type] "application/javascript")
+            (assoc-in [:headers "Content-Type"] "application/javascript")
             (respond)))}]]])
 
 (defn wrap-body-to-params
