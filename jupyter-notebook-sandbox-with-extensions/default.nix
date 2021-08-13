@@ -14,6 +14,7 @@ in stdenv.mkDerivation rec {
     # when setting up pip installed extensions
     python37Full
     graphviz
+    nodejs
   ];
 
   # this is probably an abuse
@@ -31,6 +32,7 @@ in stdenv.mkDerivation rec {
     export LD_LIBRARY_PATH=${gcc-unwrapped.lib}/lib:$LD_LIBRARY_PATH
     # needed to build pygraphviz
     export PKG_CONFIG_PATH=''${PKG_CONFIG_PATH+$PKG_CONFIG_PATH:}${graphviz}/lib/pkgconfig
+    export PATH=$PATH:$(npm bin)
 
     function enable-jupyter-extension() {
         jupyter nbextension enable --user --py $*
@@ -38,6 +40,11 @@ in stdenv.mkDerivation rec {
 
     function disable-jupyter-extension() {
         jupyter nbextension disable --user --py $*
+    }
+
+    function setup-tslab() {
+        npm install tslab
+        tslab install
     }
 
     function setup-first-run() {
