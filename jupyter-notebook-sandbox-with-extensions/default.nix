@@ -12,9 +12,11 @@ in stdenv.mkDerivation rec {
     # NOTE working directly from the nix-provided jupyter,
     # e.g. python37Packages.jupyter, seems less flexible
     # when setting up pip installed extensions
-    python37Full
+    python38Full
     graphviz
     nodejs
+    xorg.libX11
+    libGL
   ];
 
   # this is probably an abuse
@@ -80,6 +82,10 @@ in stdenv.mkDerivation rec {
         # enable-jupyter-extension nodebook
     }
 
+    function setup-additional-packages() { 
+        pip install toolz matplotlib numpy pandas mplfinance seaborn more_itertools
+    }
+
     function run-unprotected-server() {
         _token=''${1-asdf}
         if [ -e /.dockerenv ]; then
@@ -112,6 +118,7 @@ in stdenv.mkDerivation rec {
     alias run-nix-docker-container='sudo $(which docker) run -p 8888:8888 -v $PWD:/opt/demo -w /opt/demo --rm -it emacs-with-nix /bin/bash'
     alias run='jupyter notebook --no-browser'
     echo-shortcuts ${__curPos.file}
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${xorg.libX11}/lib:${libGL}/lib
   '';
 }
 
