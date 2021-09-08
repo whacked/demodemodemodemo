@@ -80,6 +80,10 @@ in stdenv.mkDerivation rec {
         # --------------------------
         # see https://github.com/stitchfix/nodebook
         # enable-jupyter-extension nodebook
+
+        pip install git+https://github.com/whacked/Jupyter-multi_outputs
+        jupyter nbextension install --py lc_multi_outputs --user
+        jupyter nbextension enable --py lc_multi_outputs --user
     }
 
     function setup-additional-packages() { 
