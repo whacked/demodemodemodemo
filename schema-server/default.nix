@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
     };
 
     buildInputs = [
-        nodejs-10_x
+        nodejs
         watchexec
     ];
 
