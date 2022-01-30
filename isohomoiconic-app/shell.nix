@@ -20,6 +20,16 @@ pkgs.mkShell {
       yarn add $macchiato_deps
     }
 
+    if [ ! -e ./node_modules ]; then
+      pastel paint red "node_modules not found"
+      read -p "auto-initialize? [Y/n] " doinit
+      case ''${doinit-y} in
+        y|Y)
+          yarn
+          ;;
+      esac
+    fi
+
     alias build='shadow-cljs watch main server'
     alias serve="watchexec --restart --no-ignore --watch build/ node build/server.js"
 
