@@ -11,6 +11,7 @@ pkgs.mkShell {
   shellHook = ''
     export PATH=$PATH:$(yarn bin)
 
+    function initialize-project-js-env() {  # sets up the bare node environment requirements
     initialize-project-js-env() {  # sets up the bare node environment requirements
       pastel paint blue "installing react deps..."
       yarn add shadow-cljs react react-dom
