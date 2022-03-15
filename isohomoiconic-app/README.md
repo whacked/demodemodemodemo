@@ -1,6 +1,6 @@
-# Basic example using Macchiato server for "isohomomorphic" ClojureScript app
+# Basic example using Macchiato server for "isohomoiconic" ClojureScript app
 
-This example contains a functional webserver that serves a single page React page.
+This example contains a functional webserver that serves a single page (trivial) React app.
 
 ClojureScript is the only language used, and all static assets (JS, CSS) are generated from ClojureScript (some on the fly, some not)
 
