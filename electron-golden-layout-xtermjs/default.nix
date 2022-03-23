@@ -10,7 +10,7 @@ stdenv.mkDerivation rec {
     buildInputs = [
         electron
         emacs
-        nodejs-10_x
+        nodejs
         yarn
     ];
 
