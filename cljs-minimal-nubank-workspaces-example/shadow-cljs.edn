@@ -1,0 +1,20 @@
+;; shadow-cljs configuration
+{:source-paths
+ ["src"]
+
+ :dependencies
+ [[nubank/workspaces "1.1.2"]
+  [reagent "1.0.0"]]
+
+ :builds {:workspaces {:target           :browser
+                       :output-dir       "public/js/workspaces"
+                       :asset-path       "/js/workspaces"
+                       :compiler-options {:output-feature-set :es7}
+                       :devtools         { ;:preloads   [fulcro.inspect.preload ] ; include for Fulcro Inspect support
+                                          :http-root          "public"
+                                          :http-port          8080
+                                          :http-resource-root "."
+                                          :preloads []}
+                       :modules          {:main {:entries [example.workspaces.main]}}}
+          }
+ }
