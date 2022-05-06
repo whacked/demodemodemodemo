@@ -56,4 +56,6 @@ this issue is in discussion at https://github.com/nubank/workspaces/issues/65
 
 backtracking on the shadow-cljs versions reveals that at present, the most
 recent version that compiles successfully, and yields a working workspaces, is
-`2.14`, so its version is locked in the package.json file here
+`2.15.12`, so its version is locked in the package.json file here. this issue
+is likely related to the google closure compiler discussed at
+https://github.com/thheller/shadow-cljs/issues/980
