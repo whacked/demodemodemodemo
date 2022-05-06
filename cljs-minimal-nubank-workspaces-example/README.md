@@ -59,3 +59,50 @@ recent version that compiles successfully, and yields a working workspaces, is
 `2.15.12`, so its version is locked in the package.json file here. this issue
 is likely related to the google closure compiler discussed at
 https://github.com/thheller/shadow-cljs/issues/980
+
+# update to run on recent shadow-cljs (2.18.0)
+
+## fix [1/2] resolving the `goog.debug.Logger.Level` error
+
+This error is caused by the removal of the `goog.debug.Logger` classes as per https://github.com/google/closure-library/releases/tag/v20210302
+
+adding
+
+```clojure
+:js-options {:resolve {"goog.debug.Logger.Level"
+                                              {:target :global
+                                               :global "goog.log.Logger.Level"}}}
+```
+
+into the build spec for `:workspaces` gets rid of the logger
+error. This fix removes the blocking error at compile time, allowing
+workspaces to compile. But loading the workspaces app in the browser
+yields errors in the console like this:
+
+```
+main.js:1425 TypeError: Cannot read properties of undefined (reading 'extend')
+    at eval (dom_history_viewer.cljs:20:1)
+    at eval (<anonymous>)
+    at Object.goog.globalEval (main.js:472:11)
+    at Object.env.evalLoad (main.js:1533:12)
+    at main.js:1778:12
+reportError @ main.js:1425
+env.evalLoad @ main.js:1535
+(anonymous) @ main.js:1778
+```
+
+## fix [2/2] resolving `TypeError: Cannot read properties of undefined (reading 'extend')`
+
+this is due to attempted calls to
+`goog.module.goog.object.extend(...)`, where `...goog.object` is
+undefined. This regression is caused by the clojurescript compiler
+dropping a globally visible `goog.module` in `1.10.891` as detailed at
+https://clojurescript.org/news/2021-11-04-release#_google_closure_library_goog_module_global_access
+
+to fix this, we add
+
+```
+:compiler-options {:global-goog-object&array true}
+```
+
+to the build specification.

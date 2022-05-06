@@ -9,7 +9,14 @@
  :builds {:workspaces {:target           :browser
                        :output-dir       "public/js/workspaces"
                        :asset-path       "/js/workspaces"
-                       :compiler-options {:output-feature-set :es7}
+                       :compiler-options {:output-feature-set :es7
+                                          ;; this line is essential for workspaces compatibility
+                                          ;; if using shadow-cljs >=2.15.13
+                                          :global-goog-object&array true
+                                          }
+                       :js-options {:resolve {"goog.debug.Logger.Level"
+                                              {:target :global
+                                               :global "goog.log.Logger.Level"}}},
                        :devtools         { ;:preloads   [fulcro.inspect.preload ] ; include for Fulcro Inspect support
                                           :http-root          "public"
                                           :http-port          8080
